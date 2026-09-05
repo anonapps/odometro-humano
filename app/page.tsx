@@ -31,7 +31,7 @@ const steps: Question[] = [
   { key: 'surgery', category: 'history', eyebrow: '17 · HISTORIAL DE TALLER', question: '¿Has tenido alguna cirugía relevante?', options: [['none', 'No', 0], ['minor', 'Cirugía menor', 0.005], ['orthopedic', 'Ortopédica / traumatológica', 0.01], ['abdominal', 'Abdominal', 0.01], ['cardiac', 'Cardiovascular', 0.01], ['neuro', 'Neurológica', 0.01], ['other', 'Otra', 0.005]] },
   { key: 'surgeryimpact', category: 'history', eyebrow: '18 · REPARACIÓN', question: '¿Te queda alguna limitación importante por una cirugía?', options: [['none', 'No', 0], ['minor', 'Leve', 0.005], ['moderate', 'Moderada', 0.01], ['major', 'Importante', 0.015]] },
   { key: 'cancer', category: 'history', eyebrow: '19 · HISTORIAL MÉDICO', question: '¿Has tenido un diagnóstico de cáncer?', options: [['none', 'No', 0], ['treated', 'Sí, tratado', 0.005], ['followup', 'Sí, en seguimiento', 0.005], ['active', 'Sí, actualmente', 0.005], ['prefer', 'Prefiero no responder', 0]] },
-  { key: 'cancertype', category: 'history', eyebrow: '20 · TIPO DE HISTORIAL', question: 'Si quieres especificarlo, ¿qué tipo fue?', options: [['breast', 'Mama'], ['prostate', 'Próstata'], ['colon', 'Colon / recto'], ['lung', 'Pulmón'], ['skin', 'Piel'], ['blood', 'Hematológico'], ['other', 'Otro / prefiero no especificar']] },
+  { key: 'cancertype', category: 'history', eyebrow: '20 · TIPO DE HISTORIAL', question: 'Si quieres especificarlo, ¿qué tipo fue?', options: [['breast', 'Mama', 0], ['prostate', 'Próstata', 0], ['colon', 'Colon / recto', 0], ['lung', 'Pulmón', 0], ['skin', 'Piel', 0], ['blood', 'Hematológico', 0], ['other', 'Otro / prefiero no especificar', 0]] },
   { key: 'chronic', category: 'history', eyebrow: '21 · ESTADO GENERAL', question: '¿Tienes alguna enfermedad crónica diagnosticada?', options: [['none', 'No', 0], ['controlled', 'Sí, controlada', 0.005], ['variable', 'Sí, variable', 0.01], ['active', 'Sí, activa', 0.015], ['prefer', 'Prefiero no responder', 0]] },
   { key: 'medication', category: 'history', eyebrow: '22 · MANTENIMIENTO', question: '¿Tomas medicación de forma habitual?', options: [['none', 'No', 0], ['occasional', 'Ocasionalmente', 0], ['regular', 'Sí, regularmente', 0.005], ['multiple', 'Varias medicaciones', 0.01], ['prefer', 'Prefiero no responder', 0]] },
   { key: 'wellbeing', category: 'load', eyebrow: '23 · PANEL DE CONTROL', question: '¿Cómo valorarías tu bienestar general?', options: [['high', 'Muy bueno', -0.03], ['good', 'Bueno', -0.015], ['mixed', 'Intermedio', 0.01], ['low', 'Bajo', 0.03]] },
@@ -41,18 +41,9 @@ const steps: Question[] = [
 const categoryLabels: Record<Category, string> = { preventive: 'MANTENIMIENTO', movement: 'MOVIMIENTO', recovery: 'RECUPERACIÓN', load: 'CARGA MENTAL', exposure: 'EXPOSICIÓN', history: 'HISTORIAL' };
 
 function formatKm(value: number) { return new Intl.NumberFormat('es-ES').format(Math.round(value)); }
-
 function answerScore(question: Question, answers: Answers) { const selected = answers[question.key]; return question.options.find(([id]) => id === selected)?.[2] ?? 0; }
-
-function categoryScore(category: Category, answers: Answers) {
-  const values = steps.filter((item) => item.category === category).map((item) => answerScore(item, answers));
-  if (!values.length) return 0;
-  const total = values.reduce((sum, value) => sum + value, 0);
-  return Math.max(0, Math.min(100, Math.round(50 - total * 500)));
-}
-
+function categoryScore(category: Category, answers: Answers) { const values = steps.filter((item) => item.category === category).map((item) => answerScore(item, answers)); if (!values.length) return 0; const total = values.reduce((sum, value) => sum + value, 0); return Math.max(0, Math.min(100, Math.round(50 - total * 500))); }
 function scoreLabel(score: number) { if (score >= 70) return 'BUENO'; if (score >= 45) return 'EN RUTA'; return 'ATENCIÓN'; }
-
 function getStatus(rate: number) { if (rate <= -0.08) return { label: 'MOTOR CUIDADO', text: 'Tus hábitos dibujan un marcador favorable.', tone: 'good' }; if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', text: 'Hay varias áreas donde un cambio puede mejorar el marcador.', tone: 'alert' }; return { label: 'EN RUTA', text: 'Tu marcador está cerca de la referencia del juego.', tone: 'neutral' }; }
 
 export default function Home() {
