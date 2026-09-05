@@ -51,7 +51,7 @@ function categoryScore(category: Category, answers: Answers) {
   return Math.max(0, Math.min(100, Math.round(50 - total * 500)));
 }
 function scoreLabel(score: number) { if (score >= 70) return 'BUENO'; if (score >= 45) return 'EN RUTA'; return 'ATENCIÓN'; }
-function getStatus(rate: number) { if (rate <= -0.08) return { label: 'MOTOR CUIDADO', text: 'Tus hábitos dibujan un marcador favorable.', tone: 'good' }; if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', text: 'Hay varias áreas donde un cambio puede mejorar el marcador.', tone: 'alert' }; return { label: 'EN RUTA', text: 'Tu marcador está cerca de la referencia del juego.', tone: 'neutral' }; }
+function getStatus(rate: number) { if (rate <= -0.08) return { label: 'MOTOR CUIDADO', text: 'Tus hábitos dibujan un marcador favorable.', tone: 'good' }; if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', text: 'Tu marcador sugiere que hay margen de mejora.', tone: 'alert' }; return { label: 'EN RUTA', text: 'Tu marcador está cerca de la referencia del juego.', tone: 'neutral' }; }
 
 function nextIndex(index: number, answers: Answers) {
   if (steps[index]?.key === 'cancer' && answers.cancer === 'none') return index + 2;
@@ -90,7 +90,7 @@ export default function Home() {
 
   return (
     <main className="shell">
-      <header><a className="brand" href="#top" aria-label="Odómetro Humano, inicio"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></a></header>
+      <header><a className="brand" href="/" aria-label="Odómetro Humano, inicio"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></a></header>
       <div id="top" className="road-line" />
 
       {screen === 'start' && <section className="hero">
@@ -125,7 +125,7 @@ export default function Home() {
       </section>}
 
       {screen === 'result' && <section className="result">
-        <p className="eyebrow">LECTURA COMPLETADA</p><h2>Este es tu<br /><i>cuadro de mandos.</i></h2>
+        <p className="eyebrow">LECTURA COMPLETADA</p><h2>El mecánico de<br /><i>turno dice:</i></h2>
         <div className="dash"><div className="dash-label">KILÓMETROS CRONOLÓGICOS</div><div className="km">{formatKm(chronological)}<small> KM</small></div><div className="dash-rule" /><div className="dash-label">KILÓMETROS BIOLÓGICOS</div><div className="km bright">{formatKm(biological)}<small> KM</small></div></div>
         <div className={`status ${status.tone}`}><span className="status-dot" /><div><b>{status.label}</b><p>{status.text}</p></div><strong>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))}<small> KM</small></strong></div>
         <div className="systems"><div className="systems-title"><span>SISTEMAS</span><span>ESTADO</span></div>{systems.map((item) => <div className="system" key={item.category}><span>{item.label}</span><div className="meter"><i style={{ width: `${item.score}%` }} /></div><b>{scoreLabel(item.score)}</b></div>)}</div>
