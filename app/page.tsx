@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useMemo, useState } from 'react';
 
 const KM_PER_YEAR = 5000;
@@ -90,7 +91,7 @@ export default function Home() {
 
   return (
     <main className="shell">
-      <header><a className="brand" href="/" aria-label="Odómetro Humano, inicio"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></a></header>
+      <header><Link className="brand" href="/" aria-label="Odómetro Humano, inicio"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></Link></header>
       <div id="top" className="road-line" />
 
       {screen === 'start' && <section className="hero">
