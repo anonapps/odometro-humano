@@ -41,19 +41,21 @@ const steps: Question[] = [
   { key: 'social', category: 'load', eyebrow: '26 · CONEXIONES', question: '¿Sientes que tienes personas con las que contar?', options: [['yes', 'Sí, claramente', -0.02], ['some', 'Algunas', 0], ['no', 'Pocas / ninguna', 0.02], ['prefer', 'Prefiero no responder', 0]] }
 ];
 
-const categoryLabels: Record<Category, string> = { preventive: 'MANTENIMIENTO', movement: 'MOVIMIENTO', recovery: 'RECUPERACIÓN', load: 'CARGA MENTAL', exposure: 'EXPOSICIÓN', history: 'HISTORIAL' };
+const categoryLabels: Record<Category, string> = { preventive: 'Mantenimiento', movement: 'Movimiento', recovery: 'Recuperación', load: 'Carga mental', exposure: 'Exposición', history: 'Historial médico' };
 
 function formatKm(value: number) { return new Intl.NumberFormat('es-ES').format(Math.round(value)); }
 function answerScore(question: Question, answers: Answers) { return question.options.find(([id]) => id === answers[question.key])?.[2] ?? 0; }
 function categoryScore(category: Category, answers: Answers) {
   const values = steps.filter((item) => item.category === category).map((item) => answerScore(item, answers));
-  if (!values.length) return 0;
   const total = values.reduce((sum, value) => sum + value, 0);
   return Math.max(0, Math.min(100, Math.round(50 - total * 500)));
 }
-function scoreLabel(score: number) { if (score >= 70) return 'BUENO'; if (score >= 45) return 'EN RUTA'; return 'ATENCIÓN'; }
-function getStatus(rate: number) { if (rate <= -0.08) return { label: 'MOTOR CUIDADO', text: 'Tus hábitos dibujan un marcador favorable.', tone: 'good' }; if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', text: 'Tu marcador sugiere que hay margen de mejora.', tone: 'alert' }; return { label: 'EN RUTA', text: 'Tu marcador está cerca de la referencia del juego.', tone: 'neutral' }; }
-
+function scoreLabel(score: number) { return score >= 45 ? 'EN RUTA' : 'ATENCIÓN'; }
+function getStatus(rate: number) {
+  if (rate <= -0.08) return { label: 'MOTOR CUIDADO', text: 'Tus hábitos dibujan un marcador favorable.', tone: 'good' };
+  if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', text: 'Tu marcador sugiere que hay margen de mejora.', tone: 'alert' };
+  return { label: 'EN RUTA', text: 'Tu marcador está cerca de la referencia del juego.', tone: 'neutral' };
+}
 function nextIndex(index: number, answers: Answers) {
   if (steps[index]?.key === 'cancer' && answers.cancer === 'none') return index + 2;
   if (steps[index]?.key === 'stress' && answers.stress === 'low') return index + 2;
@@ -63,6 +65,16 @@ function previousIndex(index: number, answers: Answers) {
   if (steps[index]?.key === 'chronic' && answers.cancer === 'none') return index - 2;
   if (steps[index]?.key === 'disconnect' && answers.stress === 'low') return index - 2;
   return index - 1;
+}
+
+function CategoryIcon({ category }: { category: Category }) {
+  const common = { width: 44, height: 44, viewBox: '0 0 48 48', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  if (category === 'preventive') return <svg {...common}><path d="M24 40S8 31 8 19a9 9 0 0 1 16-5 9 9 0 0 1 16 5c0 12-16 21-16 21Z"/><path d="M14 23h6l3-6 4 12 3-6h5"/></svg>;
+  if (category === 'movement') return <svg {...common}><circle cx="30" cy="8" r="4"/><path d="m26 14-5 7 5 5 4-6 5 4"/><path d="m21 21-7 1-5 7"/><path d="m26 26-4 9-7 5"/><path d="m30 24 7 8 5 1"/></svg>;
+  if (category === 'recovery') return <svg {...common}><path d="M9 36V19h30v17"/><path d="M5 36h38"/><path d="M14 19c0-6 4-9 10-9s10 3 10 9"/><path d="M31 6v4M35 8l-2 2M39 12h-3"/></svg>;
+  if (category === 'load') return <svg {...common}><path d="M24 42V21"/><path d="M24 21c0-8 6-13 13-13 0 8-5 13-13 13Z"/><path d="M24 27c0-6-5-10-11-10 0 7 4 10 11 10Z"/><path d="M17 42h14"/></svg>;
+  if (category === 'exposure') return <svg {...common}><path d="M9 35c10-14 19-22 32-25-2 14-10 25-23 30"/><path d="M13 39c5-6 9-11 14-15"/></svg>;
+  return <svg {...common}><rect x="12" y="10" width="24" height="32" rx="4"/><path d="M18 10V7h12v3M24 18v12M18 24h12"/></svg>;
 }
 
 export default function Home() {
@@ -76,17 +88,24 @@ export default function Home() {
   const deltaKm = biological - chronological;
   const status = getStatus(adjustmentRate);
   const current = steps[step];
-  const systems = (Object.keys(categoryLabels) as Category[]).map((category) => ({ category, label: categoryLabels[category], score: categoryScore(category, answers) }));
+  const completedCount = steps.reduce((count, item) => count + (answers[item.key] ? 1 : 0), 0);
+  const categories: Category[] = ['preventive', 'movement', 'recovery', 'load', 'exposure', 'history'];
 
   const begin = (event: FormEvent) => { event.preventDefault(); setScreen('questions'); };
-  const choose = (value: string) => setAnswers((old) => ({ ...old, [current.key]: value }));
-  const advance = (value?: string) => {
-    const effective = value ? { ...answers, [current.key]: value } : answers;
-    const target = nextIndex(step, effective);
-    if (target >= steps.length) setScreen('result'); else setStep(target);
+  const advance = (nextAnswers: Answers = answers) => {
+    const next = nextIndex(step, nextAnswers);
+    if (next >= steps.length) setScreen('result'); else setStep(next);
   };
-  const chooseOption = (value: string, advanceImmediately = false) => { choose(value); if (advanceImmediately) advance(value); };
-  const goBack = () => { const target = previousIndex(step, answers); if (target < 0) setScreen('start'); else setStep(target); };
+  const choose = (value: string) => setAnswers((old) => ({ ...old, [current.key]: value }));
+  const chooseAndAdvance = (value: string) => {
+    const nextAnswers = { ...answers, [current.key]: value };
+    setAnswers(nextAnswers);
+    advance(nextAnswers);
+  };
+  const goBack = () => {
+    const previous = previousIndex(step, answers);
+    if (previous < 0) setScreen('start'); else setStep(previous);
+  };
   const reset = () => { setAnswers(initialAnswers); setStep(0); setScreen('start'); };
 
   return (
@@ -105,32 +124,47 @@ export default function Home() {
           <div className="scale"><span>0</span><span>50</span><span>100</span></div>
           <button type="submit">ENCENDER EL MOTOR <b>→</b></button>
         </form>
-        <div className="feature-strip"><span>26 VARIABLES</span><span>100% LOCAL</span><span>ITV HUMANA</span></div>
         <p className="disclaimer">No guardamos tus respuestas. Esto no es un diagnóstico ni una predicción médica.</p>
       </section>}
 
-      {screen === 'questions' && <section className="question-wrap">
-        <div className="progress"><span>DIAGNÓSTICO RÁPIDO</span><span>{step + 1} / {steps.length}</span><div><i style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div></div>
+      {screen === 'questions' && current && <section className="question-wrap">
+        <div className="progress"><span>DIAGNÓSTICO RÁPIDO</span><span>{completedCount} / {steps.length}</span><div><i style={{ width: `${(completedCount / steps.length) * 100}%` }} /></div></div>
         <div className="question-content">
           <p className="eyebrow">{current.eyebrow}</p>
           <h2>{current.question}</h2>
           {current.hint && <p className="question-hint">{current.hint}</p>}
-          <div className="options">{current.options.map(([id, label]) => (
-            <button key={id} type="button" onClick={() => chooseOption(id)} className={answers[current.key] === id ? 'selected' : ''}>
-              <span>{label}</span>
-              <b aria-label={`Seleccionar ${label} y continuar`} onClick={(event) => { event.stopPropagation(); chooseOption(id, true); }}>→</b>
-            </button>
-          ))}</div>
-          <div className="question-actions"><button type="button" className="back" onClick={goBack}>← ATRÁS</button><button type="button" className="next" disabled={!answers[current.key]} onClick={() => advance()}>{step === steps.length - 1 ? 'VER MI MARCADOR' : 'SIGUIENTE'} →</button></div>
+          <div className="options">
+            {current.options.map(([id, label]) => <button key={id} type="button" onClick={() => choose(id)} className={answers[current.key] === id ? 'selected' : ''}>
+              <span>{label}</span><span className="option-arrow" role="button" tabIndex={0} aria-label={`Seleccionar ${label} y continuar`} onClick={(event) => { event.stopPropagation(); chooseAndAdvance(id); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); chooseAndAdvance(id); } }}>→</span>
+            </button>)}
+          </div>
+          <div className="question-actions"><button type="button" className="back" onClick={goBack}>← ATRÁS</button><button type="button" className="next" disabled={!answers[current.key]} onClick={() => advance()}>SIGUIENTE →</button></div>
+          <p className="disclaimer">Estimación educativa. Tu salud real no cabe en un cuestionario.</p>
         </div>
       </section>}
 
       {screen === 'result' && <section className="result">
-        <p className="eyebrow">LECTURA COMPLETADA</p><h2>El mecánico de<br /><i>turno dice:</i></h2>
-        <div className="dash"><div className="dash-label">KILÓMETROS CRONOLÓGICOS</div><div className="km">{formatKm(chronological)}<small> KM</small></div><div className="dash-rule" /><div className="dash-label">KILÓMETROS BIOLÓGICOS</div><div className="km bright">{formatKm(biological)}<small> KM</small></div></div>
-        <div className={`status ${status.tone}`}><span className="status-dot" /><div><b>{status.label}</b><p>{status.text}</p></div><strong>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))}<small> KM</small></strong></div>
-        <div className="systems"><div className="systems-title"><span>SISTEMAS</span><span>ESTADO</span></div>{systems.map((item) => <div className="system" key={item.category}><span>{item.label}</span><div className="meter"><i style={{ width: `${item.score}%` }} /></div><b>{scoreLabel(item.score)}</b></div>)}</div>
-        <div className="history-note"><b>LECTURA LÚDICA</b><p>Los antecedentes médicos aparecen como contexto y no se convierten directamente en una predicción de esperanza de vida.</p></div>
+        <p className="eyebrow">LECTURA COMPLETADA</p>
+        <h2>El mecánico de<br /><i>turno dice:</i></h2>
+        <div className="result-panel">
+          <div className="systems-header"><span>SISTEMAS</span><span>ESTADO</span></div>
+          <div className="systems-list">
+            {categories.map((category) => {
+              const score = categoryScore(category, answers);
+              const label = scoreLabel(score);
+              return <div className="system" key={category}>
+                <div className="system-name"><span className="system-icon"><CategoryIcon category={category} /></span><strong>{categoryLabels[category]}</strong></div>
+                <div className="meter" aria-label={`${categoryLabels[category]}: ${score}%`}><span>{Array.from({ length: 10 }).map((_, index) => <i key={index} className={index < Math.round(score / 10) ? 'filled' : ''} />)}</span></div>
+                <div className={`system-status ${label === 'ATENCIÓN' ? 'attention' : ''}`}>{label}</div>
+              </div>;
+            })}
+          </div>
+        </div>
+        <div className="result-summary">
+          <div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div>
+          <div><span>KM BIOLÓGICOS</span><strong>{formatKm(biological)} <small>KM</small></strong></div>
+          <div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div>
+        </div>
         <button className="restart" onClick={reset}>↻ CALCULAR DE NUEVO</button>
         <p className="disclaimer">Un juego para hablar de prevención, no una herramienta clínica. Consulta a profesionales para decisiones sobre tu salud.</p>
       </section>}
