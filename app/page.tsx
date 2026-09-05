@@ -2,60 +2,74 @@
 
 import { FormEvent, useMemo, useState } from 'react';
 
-// Fictional game model: 5,000 km per chronological year.
-// Biological mileage is an entertainment estimate, not a medical measurement.
 const KM_PER_YEAR = 5000;
 
-type Answers = {
-  age: number;
-  vaccination: string;
-  checkups: string;
-  movement: string;
-  smoking: string;
-  health: string;
-};
+type Option = [string, string, number];
+type Category = 'preventive' | 'movement' | 'recovery' | 'load' | 'exposure' | 'history';
+type Question = { key: string; category: Category; eyebrow: string; question: string; options: Option[] };
+type Answers = Record<string, string> & { age: string };
 
-type AnswerKey = Exclude<keyof Answers, 'age'>;
-type Question = { key: AnswerKey; eyebrow: string; question: string; options: [string, string, number][] };
-
-const initialAnswers: Answers = { age: 32, vaccination: '', checkups: '', movement: '', smoking: '', health: '' };
+const initialAnswers: Answers = { age: '32' };
 
 const steps: Question[] = [
-  { key: 'vaccination', eyebrow: '01 · MANTENIMIENTO', question: '¿Llevas tus vacunas recomendadas al día?', options: [['yes', 'Sí, al día', -0.04], ['some', 'Algunas pendientes', 0], ['no', 'No estoy seguro/a', 0.03]] },
-  { key: 'checkups', eyebrow: '02 · ITV HUMANA', question: '¿Cuándo pasaste tu última revisión preventiva?', options: [['year', 'En el último año', -0.07], ['two', 'Hace 1–2 años', -0.02], ['none', 'Hace más / nunca', 0.05]] },
-  { key: 'movement', eyebrow: '03 · MOTOR EN MARCHA', question: '¿Cómo se mueve tu cuerpo en una semana normal?', options: [['active', 'Me muevo 3+ días', -0.06], ['some', 'Algo, pero irregular', 0], ['sedentary', 'Casi nada', 0.06]] },
-  { key: 'smoking', eyebrow: '04 · HUMO EN EL MOTOR', question: '¿Cuál es tu relación con el tabaco?', options: [['never', 'No fumo', -0.03], ['former', 'Lo dejé', 0.02], ['current', 'Fumo actualmente', 0.15]] },
-  { key: 'health', eyebrow: '05 · HISTORIAL DE TALLER', question: '¿Has pasado por una enfermedad seria o cirugía mayor?', options: [['none', 'No', 0], ['recovered', 'Sí, ya recuperada', 0.06], ['ongoing', 'Sí, en curso', 0.18]] }
+  { key: 'vaccination', category: 'preventive', eyebrow: '01 · MANTENIMIENTO', question: '¿Llevas tus vacunas recomendadas al día?', options: [['yes', 'Sí, al día', -0.03], ['some', 'Algunas pendientes', 0], ['no', 'No estoy seguro/a', 0.02]] },
+  { key: 'checkups', category: 'preventive', eyebrow: '02 · ITV HUMANA', question: '¿Cuándo fue tu última revisión preventiva?', options: [['year', 'En el último año', -0.04], ['two', 'Hace 1–2 años', 0], ['none', 'Hace más / nunca', 0.04]] },
+  { key: 'dental', category: 'preventive', eyebrow: '03 · REVISIÓN', question: '¿Cómo llevas tus revisiones dentales?', options: [['recent', 'Al día', -0.02], ['sometimes', 'De vez en cuando', 0], ['never', 'Las tengo olvidadas', 0.02]] },
+  { key: 'movement', category: 'movement', eyebrow: '04 · MOTOR EN MARCHA', question: '¿Cuántos días te mueves de forma activa en una semana normal?', options: [['active', '5+ días', -0.05], ['regular', '3–4 días', -0.03], ['some', '1–2 días', 0], ['sedentary', 'Casi ninguno', 0.05]] },
+  { key: 'strength', category: 'movement', eyebrow: '05 · CHASIS', question: '¿Incluyes fuerza o ejercicios de resistencia?', options: [['often', '2+ veces por semana', -0.03], ['sometimes', 'A veces', 0], ['never', 'Prácticamente nunca', 0.02]] },
+  { key: 'sportinjury', category: 'movement', eyebrow: '06 · LESIONES DEPORTIVAS', question: '¿Has tenido alguna lesión deportiva importante?', options: [['none', 'Ninguna', 0], ['sprain', 'Esguince / lesión muscular', 0.01], ['fracture', 'Fractura', 0.02], ['ligament', 'Ligamentos / menisco', 0.025], ['other', 'Otra lesión relevante', 0.015]] },
+  { key: 'injuryimpact', category: 'movement', eyebrow: '07 · ESTADO DEL CHASIS', question: '¿Alguna lesión te limita actualmente?', options: [['none', 'No', -0.01], ['occasionally', 'Ocasionalmente', 0.01], ['regularly', 'Sí, regularmente', 0.025], ['limited', 'Limita mis actividades', 0.04]] },
+  { key: 'sleep', category: 'recovery', eyebrow: '08 · RECUPERACIÓN', question: '¿Cuántas horas duermes normalmente?', options: [['short', 'Menos de 6 horas', 0.04], ['six', '6–7 horas', 0.01], ['seven', '7–8 horas', -0.03], ['long', 'Más de 8 horas', 0]] },
+  { key: 'rested', category: 'recovery', eyebrow: '09 · ARRANQUE EN FRÍO', question: '¿Te despiertas habitualmente descansado/a?', options: [['yes', 'Sí, normalmente', -0.02], ['mixed', 'Depende del día', 0], ['no', 'Rara vez', 0.03]] },
+  { key: 'sleepquality', category: 'recovery', eyebrow: '10 · CALIDAD', question: '¿Cómo valorarías la calidad de tu sueño?', options: [['good', 'Buena', -0.02], ['fair', 'Irregular', 0.01], ['poor', 'Mala', 0.03], ['unknown', 'No lo tengo claro', 0]] },
+  { key: 'stress', category: 'load', eyebrow: '11 · CARGA DEL MOTOR', question: '¿Cómo describirías tu nivel de estrés habitual?', options: [['low', 'Bajo', -0.03], ['moderate', 'Moderado', 0], ['high', 'Alto', 0.03], ['veryhigh', 'Muy alto', 0.06]] },
+  { key: 'stressduration', category: 'load', eyebrow: '12 · DURACIÓN DE LA CARGA', question: '¿Desde cuándo sientes ese nivel de estrés?', options: [['short', 'Menos de un mes', 0], ['months', '1–6 meses', 0.01], ['year', '6–12 meses', 0.02], ['long', 'Más de un año', 0.03]] },
+  { key: 'disconnect', category: 'load', eyebrow: '13 · DESCANSO MENTAL', question: '¿Tienes tiempo real para desconectar?', options: [['often', 'Sí, con frecuencia', -0.02], ['sometimes', 'A veces', 0], ['rarely', 'Casi nunca', 0.02]] },
+  { key: 'smoking', category: 'exposure', eyebrow: '14 · HUMO EN EL MOTOR', question: '¿Cuál es tu relación con el tabaco?', options: [['never', 'No fumo', -0.04], ['former', 'Lo dejé', -0.01], ['occasional', 'Ocasional', 0.02], ['current', 'Fumo actualmente', 0.08]] },
+  { key: 'alcohol', category: 'exposure', eyebrow: '15 · CONSUMO', question: '¿Cómo describirías tu consumo de alcohol?', options: [['none', 'Nunca / casi nunca', -0.02], ['occasional', 'Ocasional', 0], ['regular', 'Regular', 0.02], ['frequent', 'Frecuente', 0.04]] },
+  { key: 'diet', category: 'exposure', eyebrow: '16 · COMBUSTIBLE', question: '¿Cómo describirías tu alimentación habitual?', options: [['balanced', 'Variada y equilibrada', -0.03], ['mixed', 'Bastante irregular', 0.01], ['poor', 'Poco equilibrada', 0.03], ['unknown', 'No sabría decir', 0]] },
+  { key: 'surgery', category: 'history', eyebrow: '17 · HISTORIAL DE TALLER', question: '¿Has tenido alguna cirugía relevante?', options: [['none', 'No', 0], ['minor', 'Cirugía menor', 0.005], ['orthopedic', 'Ortopédica / traumatológica', 0.01], ['abdominal', 'Abdominal', 0.01], ['cardiac', 'Cardiovascular', 0.01], ['neuro', 'Neurológica', 0.01], ['other', 'Otra', 0.005]] },
+  { key: 'surgeryimpact', category: 'history', eyebrow: '18 · REPARACIÓN', question: '¿Te queda alguna limitación importante por una cirugía?', options: [['none', 'No', 0], ['minor', 'Leve', 0.005], ['moderate', 'Moderada', 0.01], ['major', 'Importante', 0.015]] },
+  { key: 'cancer', category: 'history', eyebrow: '19 · HISTORIAL MÉDICO', question: '¿Has tenido un diagnóstico de cáncer?', options: [['none', 'No', 0], ['treated', 'Sí, tratado', 0.005], ['followup', 'Sí, en seguimiento', 0.005], ['active', 'Sí, actualmente', 0.005], ['prefer', 'Prefiero no responder', 0]] },
+  { key: 'cancertype', category: 'history', eyebrow: '20 · TIPO DE HISTORIAL', question: 'Si quieres especificarlo, ¿qué tipo fue?', options: [['breast', 'Mama'], ['prostate', 'Próstata'], ['colon', 'Colon / recto'], ['lung', 'Pulmón'], ['skin', 'Piel'], ['blood', 'Hematológico'], ['other', 'Otro / prefiero no especificar']] },
+  { key: 'chronic', category: 'history', eyebrow: '21 · ESTADO GENERAL', question: '¿Tienes alguna enfermedad crónica diagnosticada?', options: [['none', 'No', 0], ['controlled', 'Sí, controlada', 0.005], ['variable', 'Sí, variable', 0.01], ['active', 'Sí, activa', 0.015], ['prefer', 'Prefiero no responder', 0]] },
+  { key: 'medication', category: 'history', eyebrow: '22 · MANTENIMIENTO', question: '¿Tomas medicación de forma habitual?', options: [['none', 'No', 0], ['occasional', 'Ocasionalmente', 0], ['regular', 'Sí, regularmente', 0.005], ['multiple', 'Varias medicaciones', 0.01], ['prefer', 'Prefiero no responder', 0]] },
+  { key: 'wellbeing', category: 'load', eyebrow: '23 · PANEL DE CONTROL', question: '¿Cómo valorarías tu bienestar general?', options: [['high', 'Muy bueno', -0.03], ['good', 'Bueno', -0.015], ['mixed', 'Intermedio', 0.01], ['low', 'Bajo', 0.03]] },
+  { key: 'social', category: 'load', eyebrow: '24 · CONEXIONES', question: '¿Sientes que tienes personas con las que contar?', options: [['yes', 'Sí, claramente', -0.02], ['some', 'Algunas', 0], ['no', 'Pocas / ninguna', 0.02], ['prefer', 'Prefiero no responder', 0]] }
 ];
 
-function formatKm(value: number) {
-  return new Intl.NumberFormat('es-ES').format(Math.round(value));
+const categoryLabels: Record<Category, string> = { preventive: 'MANTENIMIENTO', movement: 'MOVIMIENTO', recovery: 'RECUPERACIÓN', load: 'CARGA MENTAL', exposure: 'EXPOSICIÓN', history: 'HISTORIAL' };
+
+function formatKm(value: number) { return new Intl.NumberFormat('es-ES').format(Math.round(value)); }
+
+function answerScore(question: Question, answers: Answers) { const selected = answers[question.key]; return question.options.find(([id]) => id === selected)?.[2] ?? 0; }
+
+function categoryScore(category: Category, answers: Answers) {
+  const values = steps.filter((item) => item.category === category).map((item) => answerScore(item, answers));
+  if (!values.length) return 0;
+  const total = values.reduce((sum, value) => sum + value, 0);
+  return Math.max(0, Math.min(100, Math.round(50 - total * 500)));
 }
 
-function getStatus(delta: number) {
-  if (delta <= -0.08) return { label: 'MOTOR CUIDADO', text: 'Tus hábitos cuentan: tu ITV humana va al día.', tone: 'good' };
-  if (delta >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', text: 'Un pequeño cambio hoy puede aligerar muchos kilómetros.', tone: 'alert' };
-  return { label: 'EN RUTA', text: 'Tu marcador está cerca de lo esperado. Sigue cuidando el motor.', tone: 'neutral' };
-}
+function scoreLabel(score: number) { if (score >= 70) return 'BUENO'; if (score >= 45) return 'EN RUTA'; return 'ATENCIÓN'; }
+
+function getStatus(rate: number) { if (rate <= -0.08) return { label: 'MOTOR CUIDADO', text: 'Tus hábitos dibujan un marcador favorable.', tone: 'good' }; if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', text: 'Hay varias áreas donde un cambio puede mejorar el marcador.', tone: 'alert' }; return { label: 'EN RUTA', text: 'Tu marcador está cerca de la referencia del juego.', tone: 'neutral' }; }
 
 export default function Home() {
   const [screen, setScreen] = useState<'start' | 'questions' | 'result'>('start');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
-  const chronological = Math.max(0, answers.age) * KM_PER_YEAR;
-  const adjustmentRate = useMemo(() => steps.reduce((total, item) => {
-    const selected = answers[item.key];
-    return total + (item.options.find(([id]) => id === selected)?.[2] ?? 0);
-  }, 0), [answers]);
-  const biological = Math.max(0, chronological * (1 + adjustmentRate));
+  const age = Math.max(0, Math.min(120, Number(answers.age) || 0));
+  const chronological = age * KM_PER_YEAR;
+  const lifestyleRate = useMemo(() => steps.filter((item) => item.category !== 'history').reduce((total, item) => total + answerScore(item, answers), 0), [answers]);
+  const historyRate = useMemo(() => steps.filter((item) => item.category === 'history').reduce((total, item) => total + answerScore(item, answers), 0), [answers]);
+  const biological = Math.max(0, chronological * (1 + lifestyleRate));
   const adjustmentKm = biological - chronological;
-  const status = getStatus(adjustmentRate);
+  const status = getStatus(lifestyleRate);
   const current = steps[step];
+  const categories = (Object.keys(categoryLabels) as Category[]).map((category) => ({ category, label: categoryLabels[category], score: categoryScore(category, answers) }));
 
-  const begin = (event: FormEvent) => {
-    event.preventDefault();
-    setScreen('questions');
-  };
+  const begin = (event: FormEvent) => { event.preventDefault(); setScreen('questions'); };
   const choose = (value: string) => setAnswers((old) => ({ ...old, [current.key]: value }));
   const next = () => step < steps.length - 1 ? setStep(step + 1) : setScreen('result');
   const reset = () => { setAnswers(initialAnswers); setStep(0); setScreen('start'); };
@@ -68,32 +82,36 @@ export default function Home() {
       {screen === 'start' && <section className="hero">
         <p className="eyebrow">TU VIDA, EN KILÓMETROS</p>
         <h1>¿Cuánto marca<br /><i>tu motor?</i></h1>
-        <p className="intro">Una estimación lúdica de tu recorrido cronológico y biológico.</p>
+        <p className="intro">Una lectura lúdica de tus hábitos, recuperación, carga y recorrido vital.</p>
         <form onSubmit={begin} className="age-card">
           <label htmlFor="age">TU EDAD</label>
-          <div className="age-row"><input id="age" type="number" min="0" max="120" value={answers.age} onChange={(e) => setAnswers({ ...answers, age: Number(e.target.value) })} /><span>AÑOS</span></div>
-          <input className="slider" type="range" min="0" max="100" value={answers.age} onChange={(e) => setAnswers({ ...answers, age: Number(e.target.value) })} aria-label="Edad" />
+          <div className="age-row"><input id="age" type="number" min="0" max="120" value={answers.age} onChange={(e) => setAnswers({ ...answers, age: e.target.value })} /><span>AÑOS</span></div>
+          <input className="slider" type="range" min="0" max="100" value={age} onChange={(e) => setAnswers({ ...answers, age: e.target.value })} aria-label="Edad" />
           <div className="scale"><span>0</span><span>50</span><span>100</span></div>
           <button type="submit">ENCENDER EL MOTOR <b>→</b></button>
         </form>
-        <p className="disclaimer">No guardamos tus respuestas. Esto no es un diagnóstico ni una predicción médica.</p>
+        <div className="feature-strip"><span>24 VARIABLES</span><span>6 SISTEMAS</span><span>100% LOCAL</span></div>
+        <p className="disclaimer">No guardamos tus respuestas. Es un juego educativo: no calcula esperanza de vida, riesgo médico ni diagnósticos.</p>
       </section>}
 
       {screen === 'questions' && <section className="question-wrap">
-        <div className="progress"><span>DIAGNÓSTICO RÁPIDO</span><span>{step + 1} / {steps.length}</span><div><i style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div></div>
+        <div className="progress"><span>LECTURA DETALLADA</span><span>{step + 1} / {steps.length}</span><div><i style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div></div>
         <p className="eyebrow">{current.eyebrow}</p>
         <h2>{current.question}</h2>
         <div className="options">{current.options.map(([id, label]) => <button key={id} onClick={() => choose(id)} className={answers[current.key] === id ? 'selected' : ''}><span>{label}</span><b>→</b></button>)}</div>
         <div className="question-actions"><button className="back" onClick={() => step === 0 ? setScreen('start') : setStep(step - 1)}>← VOLVER</button><button className="next" disabled={!answers[current.key]} onClick={next}>{step === steps.length - 1 ? 'VER MI MARCADOR' : 'SIGUIENTE'} →</button></div>
-        <p className="disclaimer">Estimación educativa. Tu salud real no cabe en un cuestionario.</p>
+        <p className="disclaimer">Las preguntas sensibles son opcionales. La lectura es educativa y no sustituye una valoración profesional.</p>
       </section>}
 
       {screen === 'result' && <section className="result">
-        <p className="eyebrow">LECTURA COMPLETADA</p><h2>Este es tu<br /><i>cuadro de mandos.</i></h2>
-        <div className="dash"><div className="dash-label">KILÓMETROS CRONOLÓGICOS</div><div className="km">{formatKm(chronological)}<small> KM</small></div><div className="dash-rule" /><div className="dash-label">KILÓMETROS BIOLÓGICOS</div><div className="km bright">{formatKm(biological)}<small> KM</small></div></div>
+        <p className="eyebrow">LECTURA COMPLETADA · 24 VARIABLES</p>
+        <h2>Este es tu<br /><i>cuadro de mandos.</i></h2>
+        <div className="dash"><div className="dash-label">KILÓMETROS CRONOLÓGICOS</div><div className="km">{formatKm(chronological)}<small> KM</small></div><div className="dash-rule" /><div className="dash-label">KILÓMETROS DE HÁBITOS</div><div className="km bright">{formatKm(biological)}<small> KM</small></div></div>
         <div className={`status ${status.tone}`}><span className="status-dot" /><div><b>{status.label}</b><p>{status.text}</p></div><strong>{adjustmentKm < 0 ? '−' : '+'}{formatKm(Math.abs(adjustmentKm))}<small> KM</small></strong></div>
+        <div className="systems"><div className="systems-title"><span>SISTEMAS DEL VEHÍCULO</span><span>ESTADO</span></div>{categories.map(({ category, label, score }) => <div className="system" key={category}><span>{label}</span><div className="meter"><i style={{ width: `${score}%` }} /></div><b>{scoreLabel(score)}</b></div>)}</div>
+        <div className="history-note"><div className="dash-label">HISTORIAL / CONTEXTO</div><p>{historyRate > 0 ? 'Has declarado elementos de historial médico que merecen contexto individual. No se convierten directamente en una predicción.' : 'No has añadido carga al bloque de historial, o has preferido no responder.'}</p></div>
         <button className="restart" onClick={reset}>↻ CALCULAR DE NUEVO</button>
-        <p className="disclaimer">Un juego para hablar de prevención, no una herramienta clínica. Consulta a profesionales para decisiones sobre tu salud.</p>
+        <p className="disclaimer">Los kilómetros son una metáfora creada para este juego. No representan años de vida, esperanza de vida, probabilidad de enfermedad ni estado clínico.</p>
       </section>}
       <footer><span>HECHO PARA CUIDAR EL VIAJE</span><span>·</span><span>TUS DATOS NO SALEN DE ESTE DISPOSITIVO</span></footer>
     </main>
