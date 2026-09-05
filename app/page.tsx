@@ -146,7 +146,7 @@ export default function Home() {
         <h2>El mecánico de<br /><i>turno dice:</i></h2>
         <div className="result-summary">
           <div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div>
-          <div><span>KM BIOLÓGICOS</span><strong>{formatKm(biological)} <small>KM</small></strong></div>
+          <div><span>KM BIOLÓGICOS</span><strong className={biological > chronological ? 'biological-higher' : biological < chronological ? 'biological-lower' : ''}>{formatKm(biological)} <small>KM</small></strong></div>
           <div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div>
         </div>
         <div className="result-panel">
