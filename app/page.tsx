@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { FormEvent, useMemo, useState } from 'react';
 
 const KM_PER_YEAR = 5000;
@@ -110,7 +109,7 @@ export default function Home() {
 
   return (
     <main className="shell">
-      <header><Link className="brand" href="/" aria-label="Odómetro Humano, inicio"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></Link></header>
+      <header><button className="brand" type="button" onClick={reset} aria-label="Odómetro Humano, reiniciar análisis"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></button></header>
       <div id="top" className="road-line" />
 
       {screen === 'start' && <section className="hero">
@@ -144,8 +143,12 @@ export default function Home() {
       </section>}
 
       {screen === 'result' && <section className="result">
-        <p className="eyebrow">LECTURA COMPLETADA</p>
         <h2>El mecánico de<br /><i>turno dice:</i></h2>
+        <div className="result-summary">
+          <div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div>
+          <div><span>KM BIOLÓGICOS</span><strong>{formatKm(biological)} <small>KM</small></strong></div>
+          <div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div>
+        </div>
         <div className="result-panel">
           <div className="systems-header"><span>SISTEMAS</span><span>ESTADO</span></div>
           <div className="systems-list">
@@ -160,12 +163,7 @@ export default function Home() {
             })}
           </div>
         </div>
-        <div className="result-summary">
-          <div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div>
-          <div><span>KM BIOLÓGICOS</span><strong>{formatKm(biological)} <small>KM</small></strong></div>
-          <div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div>
-        </div>
-        <button className="restart" onClick={reset}>↻ CALCULAR DE NUEVO</button>
+        <button className="restart" type="button" onClick={reset}>↻ CALCULAR DE NUEVO</button>
         <p className="disclaimer">Un juego para hablar de prevención, no una herramienta clínica. Consulta a profesionales para decisiones sobre tu salud.</p>
       </section>}
       <footer><span>HECHO PARA CUIDAR EL VIAJE</span><span>·</span><span>TUS DATOS NO SALEN DE ESTE DISPOSITIVO</span></footer>
