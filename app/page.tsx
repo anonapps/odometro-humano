@@ -62,7 +62,25 @@ export default function Home() {
 
   const begin = (event: FormEvent) => { event.preventDefault(); setScreen('questions'); };
   const choose = (value: string) => setAnswers((old) => ({ ...old, [current.key]: value }));
-  const next = () => step < steps.length - 1 ? setStep(step + 1) : setScreen('result');
+  const next = () => {
+    if (current.key === 'cancer' && answers.cancer === 'none') {
+      setStep(step + 2);
+      return;
+    }
+    if (step < steps.length - 1) setStep(step + 1);
+    else setScreen('result');
+  };
+  const back = () => {
+    if (step === 0) {
+      setScreen('start');
+      return;
+    }
+    if (current.key === 'chronic' && answers.cancer === 'none') {
+      setStep(step - 2);
+      return;
+    }
+    setStep(step - 1);
+  };
   const reset = () => { setAnswers(initialAnswers); setStep(0); setScreen('start'); };
 
   return (
@@ -90,7 +108,7 @@ export default function Home() {
         <p className="eyebrow">{current.eyebrow}</p>
         <h2>{current.question}</h2>
         <div className="options">{current.options.map(([id, label]) => <button key={id} onClick={() => choose(id)} className={answers[current.key] === id ? 'selected' : ''}><span>{label}</span><b>→</b></button>)}</div>
-        <div className="question-actions"><button className="back" onClick={() => step === 0 ? setScreen('start') : setStep(step - 1)}>← VOLVER</button><button className="next" disabled={!answers[current.key]} onClick={next}>{step === steps.length - 1 ? 'VER MI MARCADOR' : 'SIGUIENTE'} →</button></div>
+        <div className="question-actions"><button className="back" onClick={back}>← VOLVER</button><button className="next" disabled={!answers[current.key]} onClick={next}>{step === steps.length - 1 ? 'VER MI MARCADOR' : 'SIGUIENTE'} →</button></div>
         <p className="disclaimer">Las preguntas sensibles son opcionales. La lectura es educativa y no sustituye una valoración profesional.</p>
       </section>}
 
