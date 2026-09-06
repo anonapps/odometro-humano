@@ -1,18 +1,16 @@
 'use client';
 
 import { FormEvent, useMemo, useState } from 'react';
+import { profileAge, profileKm, profileNote, publicProfiles, type ProfileRole, type PublicProfile } from '../lib/publicProfiles';
 
 const KM_PER_YEAR = 5000;
-
 type Option = [string, string, number];
 type Category = 'preventive' | 'movement' | 'recovery' | 'load' | 'exposure' | 'history';
 type Question = { key: string; category: Category; eyebrow: string; question: string; hint?: string; options: Option[] };
 type Answers = Record<string, string> & { age: string };
-type ProfileRole = 'athlete' | 'actor' | 'politician' | 'entrepreneur' | 'musician';
-type ProfileGroup = 'similar' | 'lower' | 'higher';
-type PublicProfile = { name: string; age: number; km: number; role: ProfileRole; group: ProfileGroup; tag: string; note: string; image: string };
+type ProfileView = PublicProfile & { age: number; km: number; tag: string; group: 'similar' | 'lower' | 'higher' };
 
-const initialAnswers: Answers = { age: '32' };
+const initialAnswers: Answers = { age: '18' };
 
 const steps: Question[] = [
   { key: 'vaccination', category: 'preventive', eyebrow: '01 · MANTENIMIENTO', question: '¿Llevas tus vacunas recomendadas al día?', options: [['yes', 'Sí, al día', -0.03], ['some', 'Algunas pendientes', 0], ['no', 'No estoy seguro/a', 0.02]] },
@@ -26,7 +24,7 @@ const steps: Question[] = [
   { key: 'rested', category: 'recovery', eyebrow: '09 · ARRANQUE EN FRÍO', question: '¿Te despiertas habitualmente descansado/a?', options: [['yes', 'Sí, normalmente', -0.02], ['mixed', 'Depende del día', 0], ['no', 'Rara vez', 0.03]] },
   { key: 'sleepquality', category: 'recovery', eyebrow: '10 · CALIDAD', question: '¿Cómo valorarías la calidad de tu sueño?', options: [['good', 'Buena', -0.02], ['fair', 'Irregular', 0.01], ['poor', 'Mala', 0.03], ['unknown', 'No lo tengo claro', 0]] },
   { key: 'stress', category: 'load', eyebrow: '11 · CARGA DEL MOTOR', question: '¿Cómo describirías tu nivel de estrés habitual?', options: [['veryhigh', 'Muy alto', 0.06], ['high', 'Alto', 0.03], ['moderate', 'Moderado', 0], ['low', 'Bajo / casi inexistente', -0.03]] },
-  { key: 'stressduration', category: 'load', eyebrow: '12 · DURACIÓN DE LA CARGA', question: '¿Desde cuándo sientes ese nivel de estrés?', hint: 'Solo responde esto si tu estrés es moderado, alto o muy alto.', options: [['long', 'Más de un año', 0.03], ['year', '6–12 meses', 0.02], ['months', '1–6 meses', 0.01], ['short', 'Menos de un mes', 0]] },
+  { key: 'stressduration', category: 'load', eyebrow: '12 · DURACIÓN DE LA CARGA', question: '¿Desde cuándo sientes ese nivel de estrés?', hint: 'Solo aparece cuando has indicado estrés moderado, alto o muy alto.', options: [['long', 'Más de un año', 0.03], ['year', '6–12 meses', 0.02], ['months', '1–6 meses', 0.01], ['short', 'Menos de un mes', 0]] },
   { key: 'disconnect', category: 'load', eyebrow: '13 · DESCANSO MENTAL', question: '¿Tienes tiempo real para desconectar?', options: [['often', 'Sí, con frecuencia', -0.02], ['sometimes', 'A veces', 0], ['rarely', 'Casi nunca', 0.02]] },
   { key: 'smoking', category: 'exposure', eyebrow: '14 · HUMO EN EL MOTOR', question: '¿Cuál es tu relación con el tabaco?', options: [['current', 'Fumo actualmente', 0.08], ['occasional', 'Fumo ocasionalmente', 0.02], ['former', 'Fumé en el pasado, pero lo dejé', -0.01], ['never', 'Nunca fumo', -0.04]] },
   { key: 'alcohol', category: 'exposure', eyebrow: '15 · CONSUMO', question: '¿Con qué frecuencia consumes alcohol?', hint: 'Frecuente = varios días por semana o casi a diario. Regular = forma parte de tu semana. Ocasional = algunas ocasiones aisladas.', options: [['frequent', 'Frecuente · varios días por semana', 0.04], ['regular', 'Regular · forma parte de mi semana', 0.02], ['occasional', 'Ocasional · algunas ocasiones', 0], ['none', 'Nunca / casi nunca', -0.02]] },
@@ -44,16 +42,18 @@ const steps: Question[] = [
 ];
 
 const categoryLabels: Record<Category, string> = { preventive: 'Mantenimiento', movement: 'Movimiento', recovery: 'Recuperación', load: 'Carga mental', exposure: 'Exposición', history: 'Historial médico' };
-
-const publicProfiles: PublicProfile[] = [
-  { name: 'Leonardo DiCaprio', age: 42, km: 218000, role: 'actor', group: 'similar', tag: 'Muy similar', note: 'Estilo de vida activo, sin cirugías conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Leonardo_DiCaprio_2016.jpg' },
-  { name: 'David Beckham', age: 47, km: 225000, role: 'athlete', group: 'similar', tag: 'Muy similar', note: 'Vida activa, deporte regular, sin cirugías conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/David_Beckham.jpg' },
-  { name: 'Roger Federer', age: 42, km: 210000, role: 'athlete', group: 'similar', tag: 'Similar', note: 'Carrera deportiva de élite, con algunas lesiones conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Federer_Roger.jpg' },
-  { name: 'Novak Djokovic', age: 38, km: 182000, role: 'athlete', group: 'lower', tag: 'Significativamente menor', note: 'Vida muy activa, gran disciplina, sin cirugías conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Novak_Djokovic.jpg' },
-  { name: 'Chris Hemsworth', age: 42, km: 198000, role: 'actor', group: 'lower', tag: 'Menor', note: 'Vida activa, entrenamiento regular, sin cirugías conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chris_Hemsworth.jpg' },
-  { name: 'Elon Musk', age: 52, km: 245000, role: 'entrepreneur', group: 'higher', tag: 'Mayor', note: 'Alto estrés, largas jornadas de trabajo.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Elon_Musk.jpg' },
-  { name: 'Robert Downey Jr.', age: 58, km: 268000, role: 'actor', group: 'higher', tag: 'Significativamente mayor', note: 'Historial de adicciones documentado, en recuperación.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Robert_Downey_Jr.jpg' }
-];
+const imageMap: Record<string, string> = {
+  'Leonardo DiCaprio': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Leonardo_DiCaprio_2016.jpg',
+  'David Beckham': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/David_Beckham.jpg',
+  'Roger Federer': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Federer_Roger.jpg',
+  'Novak Djokovic': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Novak_Djokovic.jpg',
+  'Chris Hemsworth': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chris_Hemsworth.jpg',
+  'Elon Musk': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Elon_Musk.jpg',
+  'Robert Downey Jr.': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Robert_Downey_Jr.jpg',
+  'Cristiano Ronaldo': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Cristiano_Ronaldo_2018.jpg',
+  'Rafael Nadal': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rafael_Nadal_2017.jpg',
+  'Serena Williams': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Serena_Williams_2013_US_Open.jpg'
+};
 
 function formatKm(value: number) { return new Intl.NumberFormat('es-ES').format(Math.round(value)); }
 function answerScore(question: Question, answers: Answers) { return question.options.find(([id]) => id === answers[question.key])?.[2] ?? 0; }
@@ -64,9 +64,9 @@ function categoryScore(category: Category, answers: Answers) {
 }
 function scoreLabel(score: number) { return score >= 45 ? 'EN RUTA' : 'ATENCIÓN'; }
 function getStatus(rate: number) {
-  if (rate <= -0.08) return { label: 'MOTOR CUIDADO', text: 'Tus hábitos dibujan un marcador favorable.', tone: 'good' };
-  if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', text: 'Tu marcador sugiere que hay margen de mejora.', tone: 'alert' };
-  return { label: 'EN RUTA', text: 'Tu marcador está cerca de la referencia del juego.', tone: 'neutral' };
+  if (rate <= -0.08) return { label: 'MOTOR CUIDADO', tone: 'good' };
+  if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', tone: 'alert' };
+  return { label: 'EN RUTA', tone: 'neutral' };
 }
 function nextIndex(index: number, answers: Answers) {
   if (steps[index]?.key === 'cancer' && answers.cancer === 'none') return index + 2;
@@ -78,6 +78,7 @@ function previousIndex(index: number, answers: Answers) {
   if (steps[index]?.key === 'disconnect' && answers.stress === 'low') return index - 2;
   return index - 1;
 }
+function initials(name: string) { return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase(); }
 
 function CategoryIcon({ category }: { category: Category }) {
   const common = { width: 44, height: 44, viewBox: '0 0 48 48', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -89,12 +90,17 @@ function CategoryIcon({ category }: { category: Category }) {
   return <svg {...common}><rect x="12" y="10" width="24" height="32" rx="4"/><path d="M18 10V7h12v3M24 18v12M18 24h12"/></svg>;
 }
 
+function ProfileCard({ profile }: { profile: ProfileView }) {
+  const image = imageMap[profile.name];
+  return <article className="profile-card">{image ? <div className="profile-photo" style={{ backgroundImage: `url("${image}")` }} role="img" aria-label={`Foto de ${profile.name}`} /> : <div className="profile-photo profile-initials" role="img" aria-label={`Perfil de ${profile.name}`}><span>{initials(profile.name)}</span></div>}<div className="profile-body"><h5>{profile.name}</h5><div className="profile-age">{profile.age} años</div><div className="profile-km">{formatKm(profile.km)} <small>KM</small></div><span className="profile-tag">● {profile.tag}</span><p>{profileNote(profile)}</p></div></article>;
+}
+
 export default function Home() {
   const [screen, setScreen] = useState<'start' | 'questions' | 'result'>('start');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
   const [profileFilter, setProfileFilter] = useState<'all' | ProfileRole>('all');
-  const age = Math.max(0, Math.min(120, Number(answers.age) || 0));
+  const age = Math.max(18, Math.min(99, Number(answers.age) || 18));
   const chronological = age * KM_PER_YEAR;
   const adjustmentRate = useMemo(() => steps.reduce((total, item) => total + answerScore(item, answers), 0), [answers]);
   const biological = Math.max(0, chronological * (1 + adjustmentRate));
@@ -103,98 +109,35 @@ export default function Home() {
   const current = steps[step];
   const completedCount = steps.reduce((count, item) => count + (answers[item.key] ? 1 : 0), 0);
   const categories: Category[] = ['preventive', 'movement', 'recovery', 'load', 'exposure', 'history'];
-  const filteredProfiles = profileFilter === 'all' ? publicProfiles : publicProfiles.filter((profile) => profile.role === profileFilter);
-  const profileGroups: ProfileGroup[] = ['similar', 'lower', 'higher'];
 
   const begin = (event: FormEvent) => { event.preventDefault(); setScreen('questions'); };
-  const advance = (nextAnswers: Answers = answers) => {
-    const next = nextIndex(step, nextAnswers);
-    if (next >= steps.length) setScreen('result'); else setStep(next);
-  };
+  const advance = (nextAnswers: Answers = answers) => { const next = nextIndex(step, nextAnswers); if (next >= steps.length) setScreen('result'); else setStep(next); };
   const choose = (value: string) => setAnswers((old) => ({ ...old, [current.key]: value }));
-  const chooseAndAdvance = (value: string) => {
-    const nextAnswers = { ...answers, [current.key]: value };
-    setAnswers(nextAnswers);
-    advance(nextAnswers);
-  };
-  const goBack = () => {
-    const previous = previousIndex(step, answers);
-    if (previous < 0) setScreen('start'); else setStep(previous);
-  };
+  const chooseAndAdvance = (value: string) => { const nextAnswers = { ...answers, [current.key]: value }; setAnswers(nextAnswers); advance(nextAnswers); };
+  const goBack = () => { const previous = previousIndex(step, answers); if (previous < 0) setScreen('start'); else setStep(previous); };
   const reset = () => { setAnswers(initialAnswers); setStep(0); setProfileFilter('all'); setScreen('start'); };
 
-  return (
-    <main className="shell">
-      <header><button className="brand" type="button" onClick={reset} aria-label="Odómetro Humano, reiniciar análisis"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></button></header>
-      <div id="top" className="road-line" />
+  const allProfiles: ProfileView[] = useMemo(() => publicProfiles.map((profile) => ({ ...profile, age: profileAge(profile.birthDate), km: profileKm(profile), tag: '', group: 'similar' as const })), []);
+  const agePool = allProfiles.filter((profile) => profile.age >= 18 && Math.abs(profile.age - age) <= 5);
+  const sourcePool = agePool.length >= 7 ? agePool : allProfiles.filter((profile) => profile.age >= 18 && Math.abs(profile.age - age) <= 10);
+  const candidates = sourcePool.filter((profile) => profile.role === profileFilter || profileFilter === 'all').sort((a, b) => Math.abs(a.km - biological) - Math.abs(b.km - biological));
+  const similar = candidates.filter((p) => Math.abs(p.km - biological) <= 20000).slice(0, 3).map((p) => ({ ...p, tag: Math.abs(p.km - biological) <= 8000 ? 'Muy similar' : 'Similar', group: 'similar' as const }));
+  const lower = candidates.filter((p) => p.km < biological).filter((p) => !similar.some((s) => s.name === p.name)).slice(0, 2).map((p) => ({ ...p, tag: Math.abs(p.km - biological) > 20000 ? 'Significativamente menor' : 'Menor', group: 'lower' as const }));
+  const higher = candidates.filter((p) => p.km > biological).filter((p) => !similar.some((s) => s.name === p.name)).slice(0, 2).map((p) => ({ ...p, tag: Math.abs(p.km - biological) > 20000 ? 'Significativamente mayor' : 'Mayor', group: 'higher' as const }));
 
-      {screen === 'start' && <section className="hero">
-        <p className="eyebrow">TU VIDA, EN KILÓMETROS</p>
-        <h1>¿Cuánto marca<br /><i>tu motor?</i></h1>
-        <p className="intro">Una estimación lúdica de tu recorrido cronológico y biológico.</p>
-        <form onSubmit={begin} className="age-card">
-          <label htmlFor="age">TU EDAD</label>
-          <div className="age-row"><input id="age" type="number" min="0" max="120" value={answers.age} onChange={(e) => setAnswers({ ...answers, age: e.target.value })} /><span>AÑOS</span></div>
-          <input className="slider" type="range" min="0" max="100" value={age} onChange={(e) => setAnswers({ ...answers, age: e.target.value })} aria-label="Edad" />
-          <div className="scale"><span>0</span><span>50</span><span>100</span></div>
-          <button type="submit">ENCENDER EL MOTOR <b>→</b></button>
-        </form>
-        <p className="disclaimer">No guardamos tus respuestas. Esto no es un diagnóstico ni una predicción médica.</p>
-      </section>}
+  return <main className="shell"><header><button className="brand" type="button" onClick={reset} aria-label="Odómetro Humano, reiniciar análisis"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></button></header><div id="top" className="road-line" />
 
-      {screen === 'questions' && current && <section className="question-wrap">
-        <div className="progress"><span>DIAGNÓSTICO RÁPIDO</span><span>{completedCount} / {steps.length}</span><div><i style={{ width: `${(completedCount / steps.length) * 100}%` }} /></div></div>
-        <div className="question-content">
-          <p className="eyebrow">{current.eyebrow}</p>
-          <h2>{current.question}</h2>
-          {current.hint && <p className="question-hint">{current.hint}</p>}
-          <div className="options">
-            {current.options.map(([id, label]) => <button key={id} type="button" onClick={() => choose(id)} className={answers[current.key] === id ? 'selected' : ''}>
-              <span>{label}</span><span className="option-arrow" role="button" tabIndex={0} aria-label={`Seleccionar ${label} y continuar`} onClick={(event) => { event.stopPropagation(); chooseAndAdvance(id); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); chooseAndAdvance(id); } }}>→</span>
-            </button>)}
-          </div>
-          <div className="question-actions"><button type="button" className="back" onClick={goBack}>← ATRÁS</button><button type="button" className="next" disabled={!answers[current.key]} onClick={() => advance()}>SIGUIENTE →</button></div>
-          <p className="disclaimer">Estimación educativa. Tu salud real no cabe en un cuestionario.</p>
-        </div>
-      </section>}
+    {screen === 'start' && <section className="hero"><p className="eyebrow">TU VIDA, EN KILÓMETROS</p><h1>¿Cuánto marca<br /><i>tu motor?</i></h1><p className="intro">Una estimación lúdica de tu recorrido cronológico y biológico.</p><form onSubmit={begin} className="age-card"><label htmlFor="age">TU EDAD</label><div className="age-row"><input id="age" type="number" min="18" max="99" value={answers.age} onChange={(e) => setAnswers({ ...answers, age: String(Math.max(18, Math.min(99, Number(e.target.value) || 18))) })} /><span>AÑOS</span></div><input className="slider" type="range" min="18" max="99" value={age} onChange={(e) => setAnswers({ ...answers, age: e.target.value })} aria-label="Edad entre 18 y 99 años" /><div className="scale"><span>18</span><span>58</span><span>99</span></div><button type="submit">ENCENDER EL MOTOR <b>→</b></button></form><p className="disclaimer">No guardamos tus respuestas. Esto no es un diagnóstico ni una predicción médica.</p></section>}
 
-      {screen === 'result' && <section className="result">
-        <h2>El mecánico de<br /><i>turno dice:</i></h2>
-        <div className="result-summary">
-          <div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div>
-          <div><span>KM BIOLÓGICOS</span><strong className={biological > chronological ? 'biological-higher' : biological < chronological ? 'biological-lower' : ''}>{formatKm(biological)} <small>KM</small></strong></div>
-          <div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div>
-        </div>
+    {screen === 'questions' && current && <section className="question-wrap"><div className="progress"><span>DIAGNÓSTICO RÁPIDO</span><span>{completedCount} / {steps.length}</span><div><i style={{ width: `${(completedCount / steps.length) * 100}%` }} /></div></div><div className="question-content"><p className="eyebrow">{current.eyebrow}</p><h2>{current.question}</h2>{current.hint && <p className="question-hint">{current.hint}</p>}<div className="options">{current.options.map(([id, label]) => <button key={id} type="button" onClick={() => choose(id)} className={answers[current.key] === id ? 'selected' : ''}><span>{label}</span><span className="option-arrow" role="button" tabIndex={0} aria-label={`Seleccionar ${label} y continuar`} onClick={(event) => { event.stopPropagation(); chooseAndAdvance(id); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); chooseAndAdvance(id); } }}>→</span></button>)}</div><div className="question-actions"><button type="button" className="back" onClick={goBack}>← ATRÁS</button><button type="button" className="next" disabled={!answers[current.key]} onClick={() => advance()}>SIGUIENTE →</button></div><p className="disclaimer">Estimación educativa. Tu salud real no cabe en un cuestionario.</p></div></section>}
 
-        <section className="comparison" aria-labelledby="comparison-title">
-          <div className="comparison-heading">
-            <div className="comparison-title"><span className="comparison-icon">●●●</span><div><h3 id="comparison-title">¿A QUIÉN TE PARECES?</h3><p>Personas públicas de tu misma generación con un marcador estimado similar al tuyo <strong>(± 3 años)</strong>.</p></div></div>
-            <div className="comparison-note"><span>ⓘ</span><p>Los marcadores de personas públicas son estimaciones basadas en información biográfica disponible públicamente.<br />No representan su estado de salud real.</p></div>
-          </div>
-          <div className="comparison-filters">
-            {([['all', 'TODOS'], ['athlete', 'DEPORTISTAS'], ['actor', 'ACTORES'], ['politician', 'POLÍTICOS'], ['entrepreneur', 'EMPRESARIOS'], ['musician', 'MÚSICOS']] as const).map(([id, label]) => <button key={id} type="button" className={profileFilter === id ? 'active' : ''} onClick={() => setProfileFilter(id)}>{label}</button>)}
-          </div>
-          {profileGroups.map((group) => {
-            const profiles = filteredProfiles.filter((profile) => profile.group === group);
-            if (!profiles.length) return null;
-            const heading = group === 'similar' ? 'TU RANGO' : group === 'lower' ? 'POR DEBAJO DE TU MARCADOR' : 'POR ENCIMA DE TU MARCADOR';
-            const description = group === 'similar' ? 'Personas con un marcador similar al tuyo.' : group === 'lower' ? 'Estas personas tienen un marcador estimado inferior al tuyo.' : 'Estas personas tienen un marcador estimado superior al tuyo.';
-            return <div className={`comparison-group ${group}`} key={group}>
-              <div className="comparison-group-title"><span>{group === 'similar' ? '◉' : group === 'lower' ? '⌄⌄' : '⌃⌃'}</span><div><h4>{heading}</h4><p>{description}</p></div></div>
-              <div className="profile-grid">
-                {profiles.map((profile) => <article className="profile-card" key={profile.name}>
-                  <div className="profile-photo" style={{ backgroundImage: `url("${profile.image}")` }} role="img" aria-label={`Foto de ${profile.name}`} />
-                  <div className="profile-body"><h5>{profile.name}</h5><div className="profile-age">{profile.age} años</div><div className="profile-km">{formatKm(profile.km)} <small>KM</small></div><span className="profile-tag">● {profile.tag}</span><p>{profile.note}</p></div>
-                </article>)}
-              </div>
-            </div>;
-          })}
-        </section>
-
-        <button className="restart" type="button" onClick={reset}>↻ CALCULAR DE NUEVO</button>
-        <p className="disclaimer">Un juego para hablar de prevención, no una herramienta clínica. Consulta a profesionales para decisiones sobre tu salud.</p>
-      </section>}
-      <footer><span>HECHO PARA CUIDAR EL VIAJE</span><span>·</span><span>TUS DATOS NO SALEN DE ESTE DISPOSITIVO</span></footer>
-    </main>
-  );
+    {screen === 'result' && <section className="result"><h2>El mecánico de<br /><i>turno dice:</i></h2><div className="result-summary"><div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div><div><span>KM BIOLÓGICOS</span><strong className={biological > chronological ? 'biological-higher' : biological < chronological ? 'biological-lower' : ''}>{formatKm(biological)} <small>KM</small></strong></div><div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div></div>
+      <section className="result-panel"><div className="systems-header"><span>SISTEMAS</span><span>ESTADO</span></div><div className="systems-list">{categories.map((category) => { const score = categoryScore(category, answers); return <div className="system" key={category}><div className="system-name"><span className="system-icon"><CategoryIcon category={category} /></span><strong>{categoryLabels[category]}</strong></div><div className="meter"><span>{Array.from({ length: 10 }, (_, i) => <i key={i} className={i < Math.round(score / 10) ? 'filled' : ''} />)}</span></div><div className={`system-status ${score < 45 ? 'attention' : ''}`}>{scoreLabel(score)}</div></div>; })}</div></section>
+      <section className="comparison" aria-labelledby="comparison-title"><div className="comparison-heading"><div className="comparison-title"><span className="comparison-icon">●●●</span><div><h3 id="comparison-title">¿A QUIÉN TE PARECES?</h3><p>Personas públicas de tu misma generación con un marcador estimado similar al tuyo <strong>(± 3 años)</strong>.</p></div></div></div><div className="comparison-filters">{([['all', 'TODOS'], ['athlete', 'DEPORTISTAS'], ['actor', 'ACTORES'], ['politician', 'POLÍTICOS'], ['entrepreneur', 'EMPRESARIOS'], ['musician', 'MÚSICOS']] as const).map(([id, label]) => <button key={id} type="button" className={profileFilter === id ? 'active' : ''} onClick={() => setProfileFilter(id)}>{label}</button>)}</div>
+        {similar.length > 0 && <div className="comparison-group similar"><div className="comparison-group-title"><span>◉</span><div><h4>TU RANGO</h4><p>Personas con un marcador similar al tuyo.</p></div></div><div className="profile-grid">{similar.map((profile) => <ProfileCard key={profile.name} profile={profile} />)}</div></div>}
+        {lower.length > 0 && <div className="comparison-group lower"><div className="comparison-group-title"><span>⌄⌄</span><div><h4>POR DEBAJO DE TU MARCADOR</h4><p>Estas personas tienen un marcador estimado inferior al tuyo.</p></div></div><div className="profile-grid">{lower.map((profile) => <ProfileCard key={profile.name} profile={profile} />)}</div></div>}
+        {higher.length > 0 && <div className="comparison-group higher"><div className="comparison-group-title"><span>⌃⌃</span><div><h4>POR ENCIMA DE TU MARCADOR</h4><p>Estas personas tienen un marcador estimado superior al tuyo.</p></div></div><div className="profile-grid">{higher.map((profile) => <ProfileCard key={profile.name} profile={profile} />)}</div></div>}
+      </section><button className="restart" type="button" onClick={reset}>↻ CALCULAR DE NUEVO</button><p className="disclaimer">Un juego para hablar de prevención, no una herramienta clínica. Consulta a profesionales para decisiones sobre tu salud.</p>
+    </section>}
+    <footer><span>HECHO PARA CUIDAR EL VIAJE</span><span>·</span><span>TUS DATOS NO SALEN DE ESTE DISPOSITIVO</span></footer></main>;
 }
