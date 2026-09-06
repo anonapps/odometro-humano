@@ -8,6 +8,9 @@ type Option = [string, string, number];
 type Category = 'preventive' | 'movement' | 'recovery' | 'load' | 'exposure' | 'history';
 type Question = { key: string; category: Category; eyebrow: string; question: string; hint?: string; options: Option[] };
 type Answers = Record<string, string> & { age: string };
+type ProfileRole = 'athlete' | 'actor' | 'politician' | 'entrepreneur' | 'musician';
+type ProfileGroup = 'similar' | 'lower' | 'higher';
+type PublicProfile = { name: string; age: number; km: number; role: ProfileRole; group: ProfileGroup; tag: string; note: string; image: string };
 
 const initialAnswers: Answers = { age: '32' };
 
@@ -41,6 +44,16 @@ const steps: Question[] = [
 ];
 
 const categoryLabels: Record<Category, string> = { preventive: 'Mantenimiento', movement: 'Movimiento', recovery: 'Recuperación', load: 'Carga mental', exposure: 'Exposición', history: 'Historial médico' };
+
+const publicProfiles: PublicProfile[] = [
+  { name: 'Leonardo DiCaprio', age: 42, km: 218000, role: 'actor', group: 'similar', tag: 'Muy similar', note: 'Estilo de vida activo, sin cirugías conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Leonardo_DiCaprio_2016.jpg' },
+  { name: 'David Beckham', age: 47, km: 225000, role: 'athlete', group: 'similar', tag: 'Muy similar', note: 'Vida activa, deporte regular, sin cirugías conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/David_Beckham.jpg' },
+  { name: 'Roger Federer', age: 42, km: 210000, role: 'athlete', group: 'similar', tag: 'Similar', note: 'Carrera deportiva de élite, con algunas lesiones conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Federer_Roger.jpg' },
+  { name: 'Novak Djokovic', age: 38, km: 182000, role: 'athlete', group: 'lower', tag: 'Significativamente menor', note: 'Vida muy activa, gran disciplina, sin cirugías conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Novak_Djokovic.jpg' },
+  { name: 'Chris Hemsworth', age: 42, km: 198000, role: 'actor', group: 'lower', tag: 'Menor', note: 'Vida activa, entrenamiento regular, sin cirugías conocidas.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chris_Hemsworth.jpg' },
+  { name: 'Elon Musk', age: 52, km: 245000, role: 'entrepreneur', group: 'higher', tag: 'Mayor', note: 'Alto estrés, largas jornadas de trabajo.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Elon_Musk.jpg' },
+  { name: 'Robert Downey Jr.', age: 58, km: 268000, role: 'actor', group: 'higher', tag: 'Significativamente mayor', note: 'Historial de adicciones documentado, en recuperación.', image: 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Robert_Downey_Jr.jpg' }
+];
 
 function formatKm(value: number) { return new Intl.NumberFormat('es-ES').format(Math.round(value)); }
 function answerScore(question: Question, answers: Answers) { return question.options.find(([id]) => id === answers[question.key])?.[2] ?? 0; }
@@ -80,6 +93,7 @@ export default function Home() {
   const [screen, setScreen] = useState<'start' | 'questions' | 'result'>('start');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
+  const [profileFilter, setProfileFilter] = useState<'all' | ProfileRole>('all');
   const age = Math.max(0, Math.min(120, Number(answers.age) || 0));
   const chronological = age * KM_PER_YEAR;
   const adjustmentRate = useMemo(() => steps.reduce((total, item) => total + answerScore(item, answers), 0), [answers]);
@@ -89,6 +103,8 @@ export default function Home() {
   const current = steps[step];
   const completedCount = steps.reduce((count, item) => count + (answers[item.key] ? 1 : 0), 0);
   const categories: Category[] = ['preventive', 'movement', 'recovery', 'load', 'exposure', 'history'];
+  const filteredProfiles = profileFilter === 'all' ? publicProfiles : publicProfiles.filter((profile) => profile.role === profileFilter);
+  const profileGroups: ProfileGroup[] = ['similar', 'lower', 'higher'];
 
   const begin = (event: FormEvent) => { event.preventDefault(); setScreen('questions'); };
   const advance = (nextAnswers: Answers = answers) => {
@@ -105,7 +121,7 @@ export default function Home() {
     const previous = previousIndex(step, answers);
     if (previous < 0) setScreen('start'); else setStep(previous);
   };
-  const reset = () => { setAnswers(initialAnswers); setStep(0); setScreen('start'); };
+  const reset = () => { setAnswers(initialAnswers); setStep(0); setProfileFilter('all'); setScreen('start'); };
 
   return (
     <main className="shell">
@@ -149,20 +165,32 @@ export default function Home() {
           <div><span>KM BIOLÓGICOS</span><strong className={biological > chronological ? 'biological-higher' : biological < chronological ? 'biological-lower' : ''}>{formatKm(biological)} <small>KM</small></strong></div>
           <div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div>
         </div>
-        <div className="result-panel">
-          <div className="systems-header"><span>SISTEMAS</span><span>ESTADO</span></div>
-          <div className="systems-list">
-            {categories.map((category) => {
-              const score = categoryScore(category, answers);
-              const label = scoreLabel(score);
-              return <div className="system" key={category}>
-                <div className="system-name"><span className="system-icon"><CategoryIcon category={category} /></span><strong>{categoryLabels[category]}</strong></div>
-                <div className="meter" aria-label={`${categoryLabels[category]}: ${score}%`}><span>{Array.from({ length: 10 }).map((_, index) => <i key={index} className={index < Math.round(score / 10) ? 'filled' : ''} />)}</span></div>
-                <div className={`system-status ${label === 'ATENCIÓN' ? 'attention' : ''}`}>{label}</div>
-              </div>;
-            })}
+
+        <section className="comparison" aria-labelledby="comparison-title">
+          <div className="comparison-heading">
+            <div className="comparison-title"><span className="comparison-icon">●●●</span><div><h3 id="comparison-title">¿A QUIÉN TE PARECES?</h3><p>Personas públicas de tu misma generación con un marcador estimado similar al tuyo <strong>(± 3 años)</strong>.</p></div></div>
+            <div className="comparison-note"><span>ⓘ</span><p>Los marcadores de personas públicas son estimaciones basadas en información biográfica disponible públicamente.<br />No representan su estado de salud real.</p></div>
           </div>
-        </div>
+          <div className="comparison-filters">
+            {([['all', 'TODOS'], ['athlete', 'DEPORTISTAS'], ['actor', 'ACTORES'], ['politician', 'POLÍTICOS'], ['entrepreneur', 'EMPRESARIOS'], ['musician', 'MÚSICOS']] as const).map(([id, label]) => <button key={id} type="button" className={profileFilter === id ? 'active' : ''} onClick={() => setProfileFilter(id)}>{label}</button>)}
+          </div>
+          {profileGroups.map((group) => {
+            const profiles = filteredProfiles.filter((profile) => profile.group === group);
+            if (!profiles.length) return null;
+            const heading = group === 'similar' ? 'TU RANGO' : group === 'lower' ? 'POR DEBAJO DE TU MARCADOR' : 'POR ENCIMA DE TU MARCADOR';
+            const description = group === 'similar' ? 'Personas con un marcador similar al tuyo.' : group === 'lower' ? 'Estas personas tienen un marcador estimado inferior al tuyo.' : 'Estas personas tienen un marcador estimado superior al tuyo.';
+            return <div className={`comparison-group ${group}`} key={group}>
+              <div className="comparison-group-title"><span>{group === 'similar' ? '◉' : group === 'lower' ? '⌄⌄' : '⌃⌃'}</span><div><h4>{heading}</h4><p>{description}</p></div></div>
+              <div className="profile-grid">
+                {profiles.map((profile) => <article className="profile-card" key={profile.name}>
+                  <div className="profile-photo" style={{ backgroundImage: `url("${profile.image}")` }} role="img" aria-label={`Foto de ${profile.name}`} />
+                  <div className="profile-body"><h5>{profile.name}</h5><div className="profile-age">{profile.age} años</div><div className="profile-km">{formatKm(profile.km)} <small>KM</small></div><span className="profile-tag">● {profile.tag}</span><p>{profile.note}</p></div>
+                </article>)}
+              </div>
+            </div>;
+          })}
+        </section>
+
         <button className="restart" type="button" onClick={reset}>↻ CALCULAR DE NUEVO</button>
         <p className="disclaimer">Un juego para hablar de prevención, no una herramienta clínica. Consulta a profesionales para decisiones sobre tu salud.</p>
       </section>}
