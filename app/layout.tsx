@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './result-overrides.css';
 
 export const metadata: Metadata = {
   title: 'Odómetro Humano',
