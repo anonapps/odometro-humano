@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { profileAge, profileKm, publicProfiles, type ProfileRole, type PublicProfile } from '../lib/publicProfiles';
+import { profileDeathLine, profileKmWithDeath } from '../lib/profileDeath';
 import { carForBirthYear, type CarRecord } from '../lib/carData';
 
 const KM_PER_YEAR = 5000;
@@ -118,9 +119,10 @@ function useWikiImages(names: string[]) {
 function initials(name: string) { return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase(); }
 
 function ProfileCard({ profile, image }: { profile: ProfileView; image?: string }) {
+  const deathLine = profileDeathLine(profile);
   return <article className="profile-card">
     {image ? <div className="profile-photo" style={{ backgroundImage: `url("${image}")` }} role="img" aria-label={`Foto de ${profile.name}`} /> : <div className="profile-photo profile-initials" role="img" aria-label={`Perfil de ${profile.name}`}><span>{initials(profile.name)}</span></div>}
-    <div className="profile-body"><h5>{profile.name}</h5><div className="profile-age">{profile.age} años</div><div className="profile-km">{formatKm(profile.km)} <small>KM</small></div><span className="profile-tag">● {profile.tag}</span><p>{profileDescription(profile)}</p></div>
+    <div className="profile-body"><h5>{profile.name}</h5><div className="profile-age">{deathLine ?? `${profile.age} años`}</div><div className="profile-km">{formatKm(profile.km)} <small>KM</small></div><span className="profile-tag">● {profile.tag}</span><p>{profileDescription(profile)}</p></div>
   </article>;
 }
 
@@ -144,7 +146,7 @@ export default function Home() {
   const current = steps[step];
   const completedCount = steps.reduce((count, item) => count + (answers[item.key] ? 1 : 0), 0);
 
-  const allProfiles: ProfileView[] = useMemo(() => publicProfiles.map((profile) => ({ ...profile, age: profileAge(profile.birthDate), km: profileKm(profile), tag: 'Similar' })), []);
+  const allProfiles: ProfileView[] = useMemo(() => publicProfiles.map((profile) => ({ ...profile, age: profileAge(profile.birthDate), km: profileKmWithDeath(profile, profileKm(profile)), tag: 'Similar' })), []);
   const sourcePool = allProfiles.filter((profile) => profile.age >= 18 && Math.abs(profile.age - age) <= 5);
   const candidates = sourcePool.sort((a, b) => (fameScore(b.name) - fameScore(a.name)) || (Math.abs(a.age - age) - Math.abs(b.age - age)) || (Math.abs(a.km - biological) - Math.abs(b.km - biological)));
   const selectedProfiles = candidates.slice(0, 5).map((profile) => ({ ...profile, tag: Math.abs(profile.km - biological) <= 8000 ? 'Muy similar' : Math.abs(profile.km - biological) <= 20000 ? 'Similar' : profile.km < biological ? 'Menor' : 'Mayor' }));
