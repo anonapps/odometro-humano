@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { profileAge, profileKm, publicProfiles, type ProfileRole, type PublicProfile } from '../lib/publicProfiles';
+import { profileAge, profileKm, publicProfiles, type PublicProfile } from '../lib/publicProfiles';
 import { profileDeathLine, profileKmWithDeath } from '../lib/profileDeath';
 import { carForBirthYear, type CarRecord } from '../lib/carData';
 
@@ -72,7 +72,7 @@ function fameScore(name: string) {
     'Zendaya':9,'Millie Bobby Brown':8,'Timothee Chalamet':9,'Emma Watson':9,'Daniel Radcliffe':9,'Margot Robbie':9,'Tom Hanks':10,'Meryl Streep':10,
     'Arnold Schwarzenegger':10,'Sylvester Stallone':10,'Harrison Ford':10,'Patrick Stewart':9,'Ringo Starr':10,'Paul McCartney':10,'Mick Jagger':10,'Dolly Parton':10,
     'Cher':10,'Stevie Wonder':10,'Elton John':10,'Billy Joel':9,'Madonna':10,'Oprah Winfrey':10,'Gordon Ramsay':9,'Bill Gates':10,'Jeff Bezos':10,
-    'Barack Obama':10,'Donald Trump':10,'Angela Merkel':9,'Hillary Clinton':9,'Tony Blair':8,'Michelle Obama':9,'David Attenborough':9,'Mel Brooks':9,
+    'Angela Merkel':9,'Hillary Clinton':9,'Tony Blair':8,'Michelle Obama':9,'David Attenborough':9,'Mel Brooks':9,
     'Sophia Loren':10,'Judi Dench':9,'Ian McKellen':9,'Julie Andrews':10,'Maggie Smith':10,'Anthony Hopkins':10,'Michael Caine':10,'Jane Fonda':9,
     'Morgan Freeman':10,'Jack Nicholson':10,'Clint Eastwood':10,'Yoko Ono':9,'Gabriel Garcia Marquez':10,'Gunter Grass':8,'Sidney Poitier':10,'Christopher Plummer':9,
     'Sean Connery':10,'Gene Hackman':9,'Muhammad Ali':10,'Pelé':10,'Diego Maradona':10,'Michael Schumacher':10,'Ayrton Senna':10,'Kobe Bryant':10,'Diego Simeone':8,'Jose Mourinho':9,
