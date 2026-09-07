@@ -1,32 +1,42 @@
 import { profileAge, type PublicProfile } from './publicProfiles';
 
-const DEATH_YEARS: Record<string, number> = {
-  'Gabriel Garcia Marquez': 2014,
-  'Gunter Grass': 2015,
-  'Sidney Poitier': 2022,
-  'Christopher Plummer': 2021,
-  'Sean Connery': 2020,
-  'Gene Hackman': 2025,
-  'Maggie Smith': 2024,
-  'Quincy Jones': 2024,
-  'Muhammad Ali': 2016,
-  'Pelé': 2022,
-  'Diego Maradona': 2020,
-  'Ayrton Senna': 1994,
-  'Kobe Bryant': 2020,
+type DeathCause = 'natural' | 'accident' | 'excess' | 'unknown';
+
+const DEATH_DATA: Record<string, { year: number; cause: DeathCause }> = {
+  'Gabriel Garcia Marquez': { year: 2014, cause: 'excess' },
+  'Gunter Grass': { year: 2015, cause: 'natural' },
+  'Sidney Poitier': { year: 2022, cause: 'natural' },
+  'Christopher Plummer': { year: 2021, cause: 'natural' },
+  'Sean Connery': { year: 2020, cause: 'natural' },
+  'Gene Hackman': { year: 2025, cause: 'natural' },
+  'Maggie Smith': { year: 2024, cause: 'disease' as DeathCause },
+  'Quincy Jones': { year: 2024, cause: 'natural' },
+  'Muhammad Ali': { year: 2016, cause: 'disease' as DeathCause },
+  'Pelé': { year: 2022, cause: 'disease' as DeathCause },
+  'Diego Maradona': { year: 2020, cause: 'excess' },
+  'Ayrton Senna': { year: 1994, cause: 'accident' },
+  'Kobe Bryant': { year: 2020, cause: 'accident' },
 };
 
-const CURRENT_YEAR = 2026;
-const HISTORICAL_KM_PER_YEAR = 10_000;
+const DEATH_BONUS_KM: Record<DeathCause, number> = {
+  natural: 30_000,
+  accident: 60_000,
+  excess: 100_000,
+  unknown: 30_000,
+};
 
 export function profileDeathYear(profile: PublicProfile) {
-  return DEATH_YEARS[profile.name];
+  return DEATH_DATA[profile.name]?.year;
+}
+
+export function profileDeathCause(profile: PublicProfile): DeathCause | undefined {
+  return DEATH_DATA[profile.name]?.cause;
 }
 
 export function profileDeathBonusKm(profile: PublicProfile) {
-  const deathYear = profileDeathYear(profile);
-  if (!deathYear) return 0;
-  return Math.max(0, CURRENT_YEAR - deathYear) * HISTORICAL_KM_PER_YEAR;
+  const cause = profileDeathCause(profile);
+  if (!cause) return 0;
+  return DEATH_BONUS_KM[cause];
 }
 
 export function profileKmWithDeath(profile: PublicProfile, baseKm: number) {
