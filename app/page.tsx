@@ -11,6 +11,7 @@ type Question = { key: string; category: Category; eyebrow: string; question: st
 type Answers = Record<string, string> & { age: string };
 type ProfileView = PublicProfile & { age: number; km: number; tag: string };
 type WikiPage = { title?: string; thumbnail?: { source?: string } };
+type WikiResponse = { query?: { pages?: Record<string, WikiPage> } };
 
 const initialAnswers: Answers = { age: '18' };
 
@@ -95,14 +96,15 @@ function useWikiImages(names: string[]) {
   const [images, setImages] = useState<Record<string, string>>({});
   const key = names.join('|');
   useEffect(() => {
-    if (!names.length) return;
+    if (!key) return;
+    const requestedNames = key.split('|');
     fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail&pithumbsize=500&titles=${encodeURIComponent(key)}`)
-      .then((response) => response.json())
+      .then((response) => response.json() as Promise<WikiResponse>)
       .then((data) => {
         const next: Record<string, string> = {};
-        Object.values(data?.query?.pages ?? {}).forEach((page: WikiPage) => {
+        Object.values(data.query?.pages ?? {}).forEach((page) => {
           if (!page.thumbnail?.source || !page.title) return;
-          const requested = names.find((name) => name.localeCompare(page.title, undefined, { sensitivity: 'base' }) === 0);
+          const requested = requestedNames.find((name) => name.localeCompare(page.title, undefined, { sensitivity: 'base' }) === 0);
           if (requested) next[requested] = page.thumbnail.source;
         });
         setImages(next);
