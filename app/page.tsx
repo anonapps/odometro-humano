@@ -103,9 +103,11 @@ function useWikiImages(names: string[]) {
       .then((data) => {
         const next: Record<string, string> = {};
         Object.values(data.query?.pages ?? {}).forEach((page) => {
-          if (!page.thumbnail?.source || !page.title) return;
-          const requested = requestedNames.find((name) => name.localeCompare(page.title, undefined, { sensitivity: 'base' }) === 0);
-          if (requested) next[requested] = page.thumbnail.source;
+          const title = page.title;
+          const source = page.thumbnail?.source;
+          if (!title || !source) return;
+          const requested = requestedNames.find((name) => name.localeCompare(title, undefined, { sensitivity: 'base' }) === 0);
+          if (requested) next[requested] = source;
         });
         setImages(next);
       })
