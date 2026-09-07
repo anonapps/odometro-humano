@@ -20,22 +20,7 @@ export function profileAge(birthDate: string, now = new Date('2026-09-06T12:00:0
   return age;
 }
 
-const FACT_KM: Record<string, number> = {
-  professional_sport: -15000,
-  physical_activity: -5000,
-  'physical_activity:high': -12000,
-  'physical_activity:regular': -8000,
-  'physical_activity:role_training': -7000,
-  sports_injury: 6000,
-  major_injury: 10000,
-  surgery: 7000,
-  major_illness: 12000,
-  cancer: 15000,
-  disease: 15000,
-  mental_health: 3000,
-  pregnancy_complication: 5000,
-  substance_use: 10000,
-};
+const FACT_KM: Record<string, number> = { professional_sport: -15000, physical_activity: -5000, 'physical_activity:high': -12000, 'physical_activity:regular': -8000, 'physical_activity:role_training': -7000, sports_injury: 6000, major_injury: 10000, surgery: 7000, major_illness: 12000, cancer: 15000, disease: 15000, mental_health: 3000, pregnancy_complication: 5000, substance_use: 10000 };
 
 export function profileKm(profile: PublicProfile) {
   const age = profileAge(profile.birthDate);
@@ -43,14 +28,77 @@ export function profileKm(profile: PublicProfile) {
   return Math.max(0, age * 5000 + adjustment);
 }
 
+const ROLE_DESCRIPTION: Record<string, string> = {
+  'Millie Bobby Brown': 'Actriz británica',
+  'Carlos Alcaraz': 'Jugador profesional de tenis español',
+  'Jude Bellingham': 'Jugador de fútbol profesional inglés',
+  'Margot Robbie': 'Actriz australiana',
+  'Barack Obama': 'Expresidente de Estados Unidos',
+  'Donald Trump': 'Presidente de Estados Unidos',
+  'Novak Djokovic': 'Jugador profesional de tenis serbio',
+  'Rafael Nadal': 'Jugador profesional de tenis español',
+  'Cristiano Ronaldo': 'Jugador de fútbol profesional portugués',
+  'Lionel Messi': 'Jugador de fútbol profesional argentino',
+  'LeBron James': 'Jugador profesional de baloncesto estadounidense',
+  'Serena Williams': 'Exjugadora profesional de tenis estadounidense',
+  'Roger Federer': 'Exjugador profesional de tenis suizo',
+  'Tiger Woods': 'Golfista profesional estadounidense',
+  'David Beckham': 'Exjugador de fútbol profesional inglés',
+  'Tom Brady': 'Exjugador profesional de fútbol americano',
+  'Usain Bolt': 'Atleta olímpico de velocidad jamaicano',
+  'Michael Phelps': 'Exnadador olímpico estadounidense',
+  'Simone Biles': 'Gimnasta artística estadounidense',
+  'Naomi Osaka': 'Jugadora profesional de tenis japonesa',
+  'Kylian Mbappe': 'Jugador de fútbol profesional francés',
+  'Erling Haaland': 'Jugador de fútbol profesional noruego',
+  'Coco Gauff': 'Jugadora profesional de tenis estadounidense',
+  'Lamine Yamal': 'Jugador de fútbol profesional español',
+  'Gavi': 'Jugador de fútbol profesional español',
+  'Chris Hemsworth': 'Actor australiano',
+  'Ryan Reynolds': 'Actor canadiense',
+  'Ryan Gosling': 'Actor canadiense',
+  'Chris Evans': 'Actor estadounidense',
+  'Zendaya': 'Actriz estadounidense',
+  'Timothee Chalamet': 'Actor estadounidense',
+  'Emma Watson': 'Actriz británica',
+  'Daniel Radcliffe': 'Actor británico',
+  'Tom Hanks': 'Actor estadounidense',
+  'Meryl Streep': 'Actriz estadounidense',
+  'Arnold Schwarzenegger': 'Actor y exfisicoculturista austríaco-estadounidense',
+  'Sylvester Stallone': 'Actor estadounidense',
+  'Harrison Ford': 'Actor estadounidense',
+  'Patrick Stewart': 'Actor británico',
+  'Ringo Starr': 'Músico y baterista británico',
+  'Paul McCartney': 'Músico y compositor británico',
+  'Mick Jagger': 'Cantante y músico británico',
+  'Dolly Parton': 'Cantante y compositora estadounidense',
+  'Cher': 'Cantante y actriz estadounidense',
+  'Stevie Wonder': 'Músico y cantante estadounidense',
+  'Elton John': 'Músico y compositor británico',
+  'Billy Joel': 'Músico y compositor estadounidense',
+  'Madonna': 'Cantante y actriz estadounidense',
+  'Bill Gates': 'Empresario y filántropo estadounidense',
+  'Jeff Bezos': 'Empresario y fundador de Amazon',
+  'Elon Musk': 'Empresario y fundador de empresas tecnológicas',
+  'Mark Zuckerberg': 'Empresario y fundador de Meta',
+  'Joe Biden': 'Expresidente de Estados Unidos',
+  'Bill Clinton': 'Expresidente de Estados Unidos',
+  'George W Bush': 'Expresidente de Estados Unidos',
+  'Emmanuel Macron': 'Presidente de Francia',
+  'Pedro Sanchez': 'Presidente del Gobierno de España',
+  'Rishi Sunak': 'Ex primer ministro del Reino Unido',
+  'Angela Merkel': 'Excanciller de Alemania',
+  'Hillary Clinton': 'Exsecretaria de Estado de Estados Unidos',
+  'Tony Blair': 'Ex primer ministro del Reino Unido',
+  'Nicolas Sarkozy': 'Expresidente de Francia',
+};
+
 export function profileNote(profile: PublicProfile) {
-  const facts = profile.facts;
-  if (facts.some((f) => f.startsWith('professional_sport'))) return 'Deporte profesional de élite.';
-  if (facts.some((f) => f.startsWith('physical_activity'))) return 'Actividad física públicamente conocida.';
-  if (facts.some((f) => f.startsWith('surgery'))) return 'Cirugía públicamente documentada.';
-  if (facts.some((f) => f.startsWith('sports_injury'))) return 'Lesión deportiva públicamente documentada.';
-  if (facts.some((f) => ['major_illness','cancer','disease'].some((k) => f.startsWith(k)))) return 'Antecedente de salud públicamente conocido.';
-  if (facts.some((f) => f.startsWith('mental_health'))) return 'Salud mental públicamente comentada.';
-  if (facts.some((f) => f.startsWith('substance_use'))) return 'Antecedente de consumo públicamente documentado.';
-  return 'Trayectoria pública disponible.';
+  if (ROLE_DESCRIPTION[profile.name]) return ROLE_DESCRIPTION[profile.name];
+  if (profile.role === 'athlete') return 'Deportista profesional';
+  if (profile.role === 'actor') return 'Actor / actriz';
+  if (profile.role === 'politician') return 'Figura política';
+  if (profile.role === 'entrepreneur') return 'Empresario/a';
+  if (profile.role === 'musician') return 'Músico/a';
+  return 'Personalidad pública';
 }
