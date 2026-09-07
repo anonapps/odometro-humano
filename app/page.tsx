@@ -150,7 +150,7 @@ export default function Home() {
   const selectedProfiles = candidates.slice(0, 5).map((profile) => ({ ...profile, tag: Math.abs(profile.km - biological) <= 8000 ? 'Muy similar' : Math.abs(profile.km - biological) <= 20000 ? 'Similar' : profile.km < biological ? 'Menor' : 'Mayor' }));
   const profileImages = useWikiImages(selectedProfiles.map((profile) => profile.name));
 
-  const birthYear = 2026 - age;
+  const birthYear = 2025 - age;
   const car = carForBirthYear(birthYear);
   const carImages = useWikiImages([car.wikiTitle]);
 
