@@ -1,14 +1,16 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { profileAge, profileKm, profileNote, publicProfiles, type ProfileRole, type PublicProfile } from '../lib/publicProfiles';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { profileAge, profileKm, publicProfiles, type ProfileRole, type PublicProfile } from '../lib/publicProfiles';
+import { carForBirthYear, type CarRecord } from '../lib/carData';
 
 const KM_PER_YEAR = 5000;
 type Option = [string, string, number];
 type Category = 'preventive' | 'movement' | 'recovery' | 'load' | 'exposure' | 'history';
 type Question = { key: string; category: Category; eyebrow: string; question: string; hint?: string; options: Option[] };
 type Answers = Record<string, string> & { age: string };
-type ProfileView = PublicProfile & { age: number; km: number; tag: string; group: 'similar' | 'lower' | 'higher' };
+type ProfileView = PublicProfile & { age: number; km: number; tag: string };
+type WikiPage = { title?: string; thumbnail?: { source?: string } };
 
 const initialAnswers: Answers = { age: '18' };
 
@@ -41,28 +43,8 @@ const steps: Question[] = [
   { key: 'social', category: 'load', eyebrow: '26 · CONEXIONES', question: '¿Sientes que tienes personas con las que contar?', options: [['yes', 'Sí, claramente', -0.02], ['some', 'Algunas', 0], ['no', 'Pocas / ninguna', 0.02], ['prefer', 'Prefiero no responder', 0]] }
 ];
 
-const categoryLabels: Record<Category, string> = { preventive: 'Mantenimiento', movement: 'Movimiento', recovery: 'Recuperación', load: 'Carga mental', exposure: 'Exposición', history: 'Historial médico' };
-const imageMap: Record<string, string> = {
-  'Leonardo DiCaprio': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Leonardo_DiCaprio_2016.jpg',
-  'David Beckham': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/David_Beckham.jpg',
-  'Roger Federer': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Federer_Roger.jpg',
-  'Novak Djokovic': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Novak_Djokovic.jpg',
-  'Chris Hemsworth': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Chris_Hemsworth.jpg',
-  'Elon Musk': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Elon_Musk.jpg',
-  'Robert Downey Jr.': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Robert_Downey_Jr.jpg',
-  'Cristiano Ronaldo': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Cristiano_Ronaldo_2018.jpg',
-  'Rafael Nadal': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Rafael_Nadal_2017.jpg',
-  'Serena Williams': 'https://commons.wikimedia.org/wiki/Special:Redirect/file/Serena_Williams_2013_US_Open.jpg'
-};
-
 function formatKm(value: number) { return new Intl.NumberFormat('es-ES').format(Math.round(value)); }
 function answerScore(question: Question, answers: Answers) { return question.options.find(([id]) => id === answers[question.key])?.[2] ?? 0; }
-function categoryScore(category: Category, answers: Answers) {
-  const values = steps.filter((item) => item.category === category).map((item) => answerScore(item, answers));
-  const total = values.reduce((sum, value) => sum + value, 0);
-  return Math.max(0, Math.min(100, Math.round(50 - total * 500)));
-}
-function scoreLabel(score: number) { return score >= 45 ? 'EN RUTA' : 'ATENCIÓN'; }
 function getStatus(rate: number) {
   if (rate <= -0.08) return { label: 'MOTOR CUIDADO', tone: 'good' };
   if (rate >= 0.12) return { label: 'PIDE UNA PUESTA A PUNTO', tone: 'alert' };
@@ -78,28 +60,77 @@ function previousIndex(index: number, answers: Answers) {
   if (steps[index]?.key === 'disconnect' && answers.stress === 'low') return index - 2;
   return index - 1;
 }
+function fameScore(name: string) {
+  const top: Record<string, number> = {
+    'Cristiano Ronaldo':10,'Lionel Messi':10,'LeBron James':10,'Serena Williams':10,'Novak Djokovic':10,'Rafael Nadal':10,'Roger Federer':10,
+    'Chris Hemsworth':9,'Ryan Reynolds':9,'Ryan Gosling':9,'Chris Evans':9,'Dwayne Johnson':10,'Jennifer Lopez':10,'Beyonce':10,'Taylor Swift':10,
+    'Rihanna':10,'Adele':9,'Bruno Mars':9,'Justin Timberlake':9,'Leonardo DiCaprio':10,'Robert Downey Jr.':10,'Elon Musk':10,'Mark Zuckerberg':9,
+    'Barack Obama':10,'Donald Trump':10,'Joe Biden':9,'David Beckham':10,'Tom Brady':10,'Usain Bolt':10,'Michael Phelps':10,'Tiger Woods':10,
+    'Simone Biles':9,'Naomi Osaka':8,'Kylian Mbappe':9,'Erling Haaland':9,'Carlos Alcaraz':9,'Jude Bellingham':9,'Coco Gauff':8,'Lamine Yamal':8,
+    'Millie Bobby Brown':8,'Zendaya':9,'Timothee Chalamet':9,'Emma Watson':9,'Daniel Radcliffe':9,'Margot Robbie':9,'Tom Hanks':10,'Meryl Streep':10,
+    'Arnold Schwarzenegger':10,'Sylvester Stallone':10,'Harrison Ford':10,'Patrick Stewart':9,'Ringo Starr':10,'Paul McCartney':10,'Mick Jagger':10,
+    'Dolly Parton':10,'Cher':10,'Stevie Wonder':10,'Elton John':10,'Billy Joel':9,'Madonna':10,'Oprah Winfrey':10,'Gordon Ramsay':9,'Bill Gates':10,
+    'Jeff Bezos':10,'Emmanuel Macron':9,'Pedro Sanchez':8,'Angela Merkel':10,'Hillary Clinton':10,'Tony Blair':9,'Michelle Obama':10,'David Attenborough':10,
+    'Sophia Loren':10,'Judi Dench':10,'Ian McKellen':10,'Julie Andrews':10,'Maggie Smith':10,'Anthony Hopkins':10,'Michael Caine':10,'Jane Fonda':10,
+    'Morgan Freeman':10,'Jack Nicholson':10,'Clint Eastwood':10,'Muhammad Ali':10,'Pelé':10,'Diego Maradona':10,'Michael Schumacher':10,'Ayrton Senna':10,'Kobe Bryant':10
+  };
+  return top[name] ?? 6;
+}
+function profileDescription(profile: PublicProfile) {
+  if (profile.role === 'athlete') {
+    const sport = profile.facts.find((fact) => fact.startsWith('professional_sport:'))?.split(':')[1];
+    const labels: Record<string, string> = { football:'fútbol', tennis:'tenis', basketball:'baloncesto', swimming:'natación', gymnastics:'gimnasia', athletics:'atletismo', american_football:'fútbol americano' };
+    return sport ? `Jugador profesional de ${labels[sport] ?? sport}` : 'Deportista profesional';
+  }
+  const labels: Record<ProfileRole, string> = { athlete:'Deportista profesional', actor:'Actor', politician:'Figura política', entrepreneur:'Empresario', musician:'Músico', other:'Personalidad pública' };
+  if (profile.name === 'Donald Trump') return 'Presidente de Estados Unidos';
+  if (profile.name === 'Barack Obama') return 'Expresidente de Estados Unidos';
+  if (profile.name === 'Joe Biden') return 'Expresidente de Estados Unidos';
+  if (profile.name === 'Emmanuel Macron') return 'Presidente de Francia';
+  if (profile.name === 'Pedro Sanchez') return 'Presidente del Gobierno de España';
+  if (profile.name === 'Rishi Sunak') return 'Ex primer ministro del Reino Unido';
+  return labels[profile.role];
+}
+function useWikiImages(names: string[]) {
+  const [images, setImages] = useState<Record<string, string>>({});
+  const key = names.join('|');
+  useEffect(() => {
+    if (!names.length) return;
+    fetch(`https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail&pithumbsize=500&titles=${encodeURIComponent(key)}`)
+      .then((response) => response.json())
+      .then((data) => {
+        const next: Record<string, string> = {};
+        Object.values(data?.query?.pages ?? {}).forEach((page: WikiPage) => {
+          if (!page.thumbnail?.source || !page.title) return;
+          const requested = names.find((name) => name.localeCompare(page.title, undefined, { sensitivity: 'base' }) === 0);
+          if (requested) next[requested] = page.thumbnail.source;
+        });
+        setImages(next);
+      })
+      .catch(() => setImages({}));
+  }, [key]);
+  return images;
+}
 function initials(name: string) { return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase(); }
 
-function CategoryIcon({ category }: { category: Category }) {
-  const common = { width: 44, height: 44, viewBox: '0 0 48 48', fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  if (category === 'preventive') return <svg {...common}><path d="M24 40S8 31 8 19a9 9 0 0 1 16-5 9 9 0 0 1 16 5c0 12-16 21-16 21Z"/><path d="M14 23h6l3-6 4 12 3-6h5"/></svg>;
-  if (category === 'movement') return <svg {...common}><circle cx="30" cy="8" r="4"/><path d="m26 14-5 7 5 5 4-6 5 4"/><path d="m21 21-7 1-5 7"/><path d="m26 26-4 9-7 5"/><path d="m30 24 7 8 5 1"/></svg>;
-  if (category === 'recovery') return <svg {...common}><path d="M9 36V19h30v17"/><path d="M5 36h38"/><path d="M14 19c0-6 4-9 10-9s10 3 10 9"/><path d="M31 6v4M35 8l-2 2M39 12h-3"/></svg>;
-  if (category === 'load') return <svg {...common}><path d="M24 42V21"/><path d="M24 21c0-8 6-13 13-13 0 8-5 13-13 13Z"/><path d="M24 27c0-6-5-10-11-10 0 7 4 10 11 10Z"/><path d="M17 42h14"/></svg>;
-  if (category === 'exposure') return <svg {...common}><path d="M9 35c10-14 19-22 32-25-2 14-10 25-23 30"/><path d="M13 39c5-6 9-11 14-15"/></svg>;
-  return <svg {...common}><rect x="12" y="10" width="24" height="32" rx="4"/><path d="M18 10V7h12v3M24 18v12M18 24h12"/></svg>;
+function ProfileCard({ profile, image }: { profile: ProfileView; image?: string }) {
+  return <article className="profile-card">
+    {image ? <div className="profile-photo" style={{ backgroundImage: `url("${image}")` }} role="img" aria-label={`Foto de ${profile.name}`} /> : <div className="profile-photo profile-initials" role="img" aria-label={`Perfil de ${profile.name}`}><span>{initials(profile.name)}</span></div>}
+    <div className="profile-body"><h5>{profile.name}</h5><div className="profile-age">{profile.age} años</div><div className="profile-km">{formatKm(profile.km)} <small>KM</small></div><span className="profile-tag">● {profile.tag}</span><p>{profileDescription(profile)}</p></div>
+  </article>;
 }
 
-function ProfileCard({ profile }: { profile: ProfileView }) {
-  const image = imageMap[profile.name];
-  return <article className="profile-card">{image ? <div className="profile-photo" style={{ backgroundImage: `url("${image}")` }} role="img" aria-label={`Foto de ${profile.name}`} /> : <div className="profile-photo profile-initials" role="img" aria-label={`Perfil de ${profile.name}`}><span>{initials(profile.name)}</span></div>}<div className="profile-body"><h5>{profile.name}</h5><div className="profile-age">{profile.age} años</div><div className="profile-km">{formatKm(profile.km)} <small>KM</small></div><span className="profile-tag">● {profile.tag}</span><p>{profileNote(profile)}</p></div></article>;
+function CarCard({ car, image }: { car: CarRecord; image?: string }) {
+  return <section className="car-match" aria-labelledby="car-title">
+    <div className="car-heading"><span className="car-kicker">¿QUÉ COCHE TE CORRESPONDE?</span><h3 id="car-title">{car.model} <span>— {car.year}</span></h3></div>
+    <div className="car-visual">{image ? <div className="car-photo" style={{ backgroundImage: `url("${image}")` }} role="img" aria-label={`Imagen de ${car.model}`} /> : <div className="car-photo car-placeholder">🚗</div>}</div>
+  </section>;
 }
 
 export default function Home() {
   const [screen, setScreen] = useState<'start' | 'questions' | 'result'>('start');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
-  const [profileFilter, setProfileFilter] = useState<'all' | ProfileRole>('all');
   const age = Math.max(18, Math.min(99, Number(answers.age) || 18));
   const chronological = age * KM_PER_YEAR;
   const adjustmentRate = useMemo(() => steps.reduce((total, item) => total + answerScore(item, answers), 0), [answers]);
@@ -108,36 +139,53 @@ export default function Home() {
   const status = getStatus(adjustmentRate);
   const current = steps[step];
   const completedCount = steps.reduce((count, item) => count + (answers[item.key] ? 1 : 0), 0);
-  const categories: Category[] = ['preventive', 'movement', 'recovery', 'load', 'exposure', 'history'];
+
+  const allProfiles: ProfileView[] = useMemo(() => publicProfiles.map((profile) => ({ ...profile, age: profileAge(profile.birthDate), km: profileKm(profile), tag: 'Similar' })), []);
+  const sourcePool = allProfiles.filter((profile) => profile.age >= 18 && Math.abs(profile.age - age) <= 5);
+  const candidates = sourcePool.sort((a, b) => (fameScore(b.name) - fameScore(a.name)) || (Math.abs(a.age - age) - Math.abs(b.age - age)) || (Math.abs(a.km - biological) - Math.abs(b.km - biological)));
+  const selectedProfiles = candidates.slice(0, 5).map((profile) => ({ ...profile, tag: Math.abs(profile.km - biological) <= 8000 ? 'Muy similar' : Math.abs(profile.km - biological) <= 20000 ? 'Similar' : profile.km < biological ? 'Menor' : 'Mayor' }));
+  const profileImages = useWikiImages(selectedProfiles.map((profile) => profile.name));
+
+  const birthYear = 2026 - age;
+  const car = carForBirthYear(birthYear);
+  const carImages = useWikiImages([car.wikiTitle]);
 
   const begin = (event: FormEvent) => { event.preventDefault(); setScreen('questions'); };
   const advance = (nextAnswers: Answers = answers) => { const next = nextIndex(step, nextAnswers); if (next >= steps.length) setScreen('result'); else setStep(next); };
-  const choose = (value: string) => setAnswers((old) => ({ ...old, [current.key]: value }));
   const chooseAndAdvance = (value: string) => { const nextAnswers = { ...answers, [current.key]: value }; setAnswers(nextAnswers); advance(nextAnswers); };
   const goBack = () => { const previous = previousIndex(step, answers); if (previous < 0) setScreen('start'); else setStep(previous); };
-  const reset = () => { setAnswers(initialAnswers); setStep(0); setProfileFilter('all'); setScreen('start'); };
+  const reset = () => { setAnswers(initialAnswers); setStep(0); setScreen('start'); };
 
-  const allProfiles: ProfileView[] = useMemo(() => publicProfiles.map((profile) => ({ ...profile, age: profileAge(profile.birthDate), km: profileKm(profile), tag: '', group: 'similar' as const })), []);
-  const agePool = allProfiles.filter((profile) => profile.age >= 18 && Math.abs(profile.age - age) <= 5);
-  const sourcePool = agePool.length >= 7 ? agePool : allProfiles.filter((profile) => profile.age >= 18 && Math.abs(profile.age - age) <= 10);
-  const candidates = sourcePool.filter((profile) => profile.role === profileFilter || profileFilter === 'all').sort((a, b) => Math.abs(a.km - biological) - Math.abs(b.km - biological));
-  const similar = candidates.filter((p) => Math.abs(p.km - biological) <= 20000).slice(0, 3).map((p) => ({ ...p, tag: Math.abs(p.km - biological) <= 8000 ? 'Muy similar' : 'Similar', group: 'similar' as const }));
-  const lower = candidates.filter((p) => p.km < biological).filter((p) => !similar.some((s) => s.name === p.name)).slice(0, 2).map((p) => ({ ...p, tag: Math.abs(p.km - biological) > 20000 ? 'Significativamente menor' : 'Menor', group: 'lower' as const }));
-  const higher = candidates.filter((p) => p.km > biological).filter((p) => !similar.some((s) => s.name === p.name)).slice(0, 2).map((p) => ({ ...p, tag: Math.abs(p.km - biological) > 20000 ? 'Significativamente mayor' : 'Mayor', group: 'higher' as const }));
+  return <main className="shell">
+    <header><button className="brand" type="button" onClick={reset} aria-label="Odómetro Humano, reiniciar análisis"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></button></header>
+    <div id="top" className="road-line" />
 
-  return <main className="shell"><header><button className="brand" type="button" onClick={reset} aria-label="Odómetro Humano, reiniciar análisis"><span className="brand-mark">O</span> ODÓMETRO <em>HUMANO</em></button></header><div id="top" className="road-line" />
-
-    {screen === 'start' && <section className="hero"><p className="eyebrow">TU VIDA, EN KILÓMETROS</p><h1>¿Cuánto marca<br /><i>tu motor?</i></h1><p className="intro">Una estimación lúdica de tu recorrido cronológico y biológico.</p><form onSubmit={begin} className="age-card"><label htmlFor="age">TU EDAD</label><div className="age-row"><input id="age" type="number" min="18" max="99" value={answers.age} onChange={(e) => setAnswers({ ...answers, age: String(Math.max(18, Math.min(99, Number(e.target.value) || 18))) })} /><span>AÑOS</span></div><input className="slider" type="range" min="18" max="99" value={age} onChange={(e) => setAnswers({ ...answers, age: e.target.value })} aria-label="Edad entre 18 y 99 años" /><div className="scale"><span>18</span><span>58</span><span>99</span></div><button type="submit">ENCENDER EL MOTOR <b>→</b></button></form><p className="disclaimer">No guardamos tus respuestas. Esto no es un diagnóstico ni una predicción médica.</p></section>}
-
-    {screen === 'questions' && current && <section className="question-wrap"><div className="progress"><span>DIAGNÓSTICO RÁPIDO</span><span>{completedCount} / {steps.length}</span><div><i style={{ width: `${(completedCount / steps.length) * 100}%` }} /></div></div><div className="question-content"><p className="eyebrow">{current.eyebrow}</p><h2>{current.question}</h2>{current.hint && <p className="question-hint">{current.hint}</p>}<div className="options">{current.options.map(([id, label]) => <button key={id} type="button" onClick={() => choose(id)} className={answers[current.key] === id ? 'selected' : ''}><span>{label}</span><span className="option-arrow" role="button" tabIndex={0} aria-label={`Seleccionar ${label} y continuar`} onClick={(event) => { event.stopPropagation(); chooseAndAdvance(id); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); chooseAndAdvance(id); } }}>→</span></button>)}</div><div className="question-actions"><button type="button" className="back" onClick={goBack}>← ATRÁS</button><button type="button" className="next" disabled={!answers[current.key]} onClick={() => advance()}>SIGUIENTE →</button></div><p className="disclaimer">Estimación educativa. Tu salud real no cabe en un cuestionario.</p></div></section>}
-
-    {screen === 'result' && <section className="result"><h2>El mecánico de<br /><i>turno dice:</i></h2><div className="result-summary"><div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div><div><span>KM BIOLÓGICOS</span><strong className={biological > chronological ? 'biological-higher' : biological < chronological ? 'biological-lower' : ''}>{formatKm(biological)} <small>KM</small></strong></div><div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div></div>
-      <section className="result-panel"><div className="systems-header"><span>SISTEMAS</span><span>ESTADO</span></div><div className="systems-list">{categories.map((category) => { const score = categoryScore(category, answers); return <div className="system" key={category}><div className="system-name"><span className="system-icon"><CategoryIcon category={category} /></span><strong>{categoryLabels[category]}</strong></div><div className="meter"><span>{Array.from({ length: 10 }, (_, i) => <i key={i} className={i < Math.round(score / 10) ? 'filled' : ''} />)}</span></div><div className={`system-status ${score < 45 ? 'attention' : ''}`}>{scoreLabel(score)}</div></div>; })}</div></section>
-      <section className="comparison" aria-labelledby="comparison-title"><div className="comparison-heading"><div className="comparison-title"><span className="comparison-icon">●●●</span><div><h3 id="comparison-title">¿A QUIÉN TE PARECES?</h3><p>Personas públicas de tu misma generación con un marcador estimado similar al tuyo <strong>(± 3 años)</strong>.</p></div></div></div><div className="comparison-filters">{([['all', 'TODOS'], ['athlete', 'DEPORTISTAS'], ['actor', 'ACTORES'], ['politician', 'POLÍTICOS'], ['entrepreneur', 'EMPRESARIOS'], ['musician', 'MÚSICOS']] as const).map(([id, label]) => <button key={id} type="button" className={profileFilter === id ? 'active' : ''} onClick={() => setProfileFilter(id)}>{label}</button>)}</div>
-        {similar.length > 0 && <div className="comparison-group similar"><div className="comparison-group-title"><span>◉</span><div><h4>TU RANGO</h4><p>Personas con un marcador similar al tuyo.</p></div></div><div className="profile-grid">{similar.map((profile) => <ProfileCard key={profile.name} profile={profile} />)}</div></div>}
-        {lower.length > 0 && <div className="comparison-group lower"><div className="comparison-group-title"><span>⌄⌄</span><div><h4>POR DEBAJO DE TU MARCADOR</h4><p>Estas personas tienen un marcador estimado inferior al tuyo.</p></div></div><div className="profile-grid">{lower.map((profile) => <ProfileCard key={profile.name} profile={profile} />)}</div></div>}
-        {higher.length > 0 && <div className="comparison-group higher"><div className="comparison-group-title"><span>⌃⌃</span><div><h4>POR ENCIMA DE TU MARCADOR</h4><p>Estas personas tienen un marcador estimado superior al tuyo.</p></div></div><div className="profile-grid">{higher.map((profile) => <ProfileCard key={profile.name} profile={profile} />)}</div></div>}
-      </section><button className="restart" type="button" onClick={reset}>↻ CALCULAR DE NUEVO</button><p className="disclaimer">Un juego para hablar de prevención, no una herramienta clínica. Consulta a profesionales para decisiones sobre tu salud.</p>
+    {screen === 'start' && <section className="hero">
+      <p className="eyebrow">TU VIDA, EN KILÓMETROS</p><h1>¿Cuánto marca<br /><i>tu motor?</i></h1><p className="intro">Una estimación lúdica de tu recorrido cronológico y biológico.</p>
+      <form onSubmit={begin} className="age-card"><label htmlFor="age">TU EDAD</label><div className="age-row"><input id="age" type="number" min="18" max="99" value={answers.age} onChange={(e) => setAnswers({ ...answers, age: String(Math.max(18, Math.min(99, Number(e.target.value) || 18))) })} /><span>AÑOS</span></div>
+      <input className="slider" type="range" min="18" max="99" value={age} onChange={(e) => setAnswers({ ...answers, age: e.target.value })} aria-label="Edad entre 18 y 99 años" /><div className="scale"><span>18</span><span>58</span><span>99</span></div>
+      <button type="submit">ENCENDER EL MOTOR <b>→</b></button></form>
     </section>}
-    <footer><span>HECHO PARA CUIDAR EL VIAJE</span><span>·</span><span>TUS DATOS NO SALEN DE ESTE DISPOSITIVO</span></footer></main>;
+
+    {screen === 'questions' && current && <section className="question-wrap">
+      <div className="progress"><span>DIAGNÓSTICO RÁPIDO</span><span>{completedCount} / {steps.length}</span><div><i style={{ width: `${(completedCount / steps.length) * 100}%` }} /></div></div>
+      <div className="question-content"><p className="eyebrow">{current.eyebrow}</p><h2>{current.question}</h2>{current.hint && <p className="question-hint">{current.hint}</p>}
+        <div className="options">{current.options.map(([id, label]) => <button key={id} type="button" onClick={() => chooseAndAdvance(id)} className={answers[current.key] === id ? 'selected' : ''}><span>{label}</span><span className="option-arrow" aria-hidden="true">→</span></button>)}</div>
+        <div className="question-actions"><button type="button" className="back" onClick={goBack}>← ATRÁS</button></div>
+      </div>
+    </section>}
+
+    {screen === 'result' && <section className="result">
+      <h2>El mecánico de<br /><i>turno dice:</i></h2>
+      <div className="result-summary"><div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div><div><span>KM BIOLÓGICOS</span><strong className={biological > chronological ? 'biological-higher' : biological < chronological ? 'biological-lower' : ''}>{formatKm(biological)} <small>KM</small></strong></div>
+      <div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div></div>
+      <CarCard car={car} image={carImages[car.wikiTitle]} />
+      <section className="comparison" aria-labelledby="comparison-title"><div className="comparison-heading"><span className="comparison-icon">●●●</span><div><h3 id="comparison-title">¿A QUIÉN TE PARECES?</h3><p>5 personas públicas de tu misma generación, elegidas por cercanía de edad y nivel de reconocimiento.</p></div></div>
+        <div className="profile-grid five">{selectedProfiles.map((profile) => <ProfileCard key={profile.name} profile={profile} image={profileImages[profile.name]} />)}</div>
+      </section>
+      <button className="restart" type="button" onClick={reset}>↻ CALCULAR DE NUEVO</button>
+    </section>}
+
+    <footer><span>HECHO PARA CUIDAR EL VIAJE</span><span>·</span><span>TUS DATOS NO SALEN DE ESTE DISPOSITIVO</span></footer>
+  </main>;
 }
