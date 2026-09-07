@@ -68,34 +68,38 @@ function fameScore(name: string) {
     'Chris Hemsworth':9,'Ryan Reynolds':9,'Ryan Gosling':9,'Chris Evans':9,'Dwayne Johnson':10,'Jennifer Lopez':10,'Beyonce':10,'Taylor Swift':10,
     'Rihanna':10,'Adele':9,'Bruno Mars':9,'Justin Timberlake':9,'Leonardo DiCaprio':10,'Robert Downey Jr.':10,'Elon Musk':10,'Mark Zuckerberg':9,
     'Barack Obama':10,'Donald Trump':10,'Joe Biden':9,'David Beckham':10,'Tom Brady':10,'Usain Bolt':10,'Michael Phelps':10,'Tiger Woods':10,
-    'Simone Biles':9,'Naomi Osaka':8,'Kylian Mbappe':9,'Erling Haaland':9,'Carlos Alcaraz':9,'Jude Bellingham':9,'Coco Gauff':8,'Lamine Yamal':8,
-    'Millie Bobby Brown':8,'Zendaya':9,'Timothee Chalamet':9,'Emma Watson':9,'Daniel Radcliffe':9,'Margot Robbie':9,'Tom Hanks':10,'Meryl Streep':10,
-    'Arnold Schwarzenegger':10,'Sylvester Stallone':10,'Harrison Ford':10,'Patrick Stewart':9,'Ringo Starr':10,'Paul McCartney':10,'Mick Jagger':10,
-    'Dolly Parton':10,'Cher':10,'Stevie Wonder':10,'Elton John':10,'Billy Joel':9,'Madonna':10,'Oprah Winfrey':10,'Gordon Ramsay':9,'Bill Gates':10,
-    'Jeff Bezos':10,'Emmanuel Macron':9,'Pedro Sanchez':8,'Angela Merkel':10,'Hillary Clinton':10,'Tony Blair':9,'Michelle Obama':10,'David Attenborough':10,
-    'Sophia Loren':10,'Judi Dench':10,'Ian McKellen':10,'Julie Andrews':10,'Maggie Smith':10,'Anthony Hopkins':10,'Michael Caine':10,'Jane Fonda':10,
-    'Morgan Freeman':10,'Jack Nicholson':10,'Clint Eastwood':10,'Muhammad Ali':10,'Pelé':10,'Diego Maradona':10,'Michael Schumacher':10,'Ayrton Senna':10,'Kobe Bryant':10
+    'Simone Biles':9,'Naomi Osaka':8,'Kylian Mbappe':9,'Erling Haaland':9,'Carlos Alcaraz':9,'Jude Bellingham':8,'Coco Gauff':8,'Lamine Yamal':8,'Gavi':7,
+    'Zendaya':9,'Millie Bobby Brown':8,'Timothee Chalamet':9,'Emma Watson':9,'Daniel Radcliffe':9,'Margot Robbie':9,'Tom Hanks':10,'Meryl Streep':10,
+    'Arnold Schwarzenegger':10,'Sylvester Stallone':10,'Harrison Ford':10,'Patrick Stewart':9,'Ringo Starr':10,'Paul McCartney':10,'Mick Jagger':10,'Dolly Parton':10,
+    'Cher':10,'Stevie Wonder':10,'Elton John':10,'Billy Joel':9,'Madonna':10,'Oprah Winfrey':10,'Gordon Ramsay':9,'Bill Gates':10,'Jeff Bezos':10,
+    'Barack Obama':10,'Donald Trump':10,'Angela Merkel':9,'Hillary Clinton':9,'Tony Blair':8,'Michelle Obama':9,'David Attenborough':9,'Mel Brooks':9,
+    'Sophia Loren':10,'Judi Dench':9,'Ian McKellen':9,'Julie Andrews':10,'Maggie Smith':10,'Anthony Hopkins':10,'Michael Caine':10,'Jane Fonda':9,
+    'Morgan Freeman':10,'Jack Nicholson':10,'Clint Eastwood':10,'Yoko Ono':9,'Gabriel Garcia Marquez':10,'Gunter Grass':8,'Sidney Poitier':10,'Christopher Plummer':9,
+    'Sean Connery':10,'Gene Hackman':9,'Muhammad Ali':10,'Pelé':10,'Diego Maradona':10,'Michael Schumacher':10,'Ayrton Senna':10,'Kobe Bryant':10,'Diego Simeone':8,'Jose Mourinho':9,
   };
-  return top[name] ?? 6;
+  return top[name] ?? 7;
 }
 function profileDescription(profile: PublicProfile) {
-  if (profile.role === 'athlete') {
-    const sport = profile.facts.find((fact) => fact.startsWith('professional_sport:'))?.split(':')[1];
-    const labels: Record<string, string> = { football:'fútbol', tennis:'tenis', basketball:'baloncesto', swimming:'natación', gymnastics:'gimnasia', athletics:'atletismo', american_football:'fútbol americano' };
-    return sport ? `Jugador profesional de ${labels[sport] ?? sport}` : 'Deportista profesional';
-  }
-  const labels: Record<ProfileRole, string> = { athlete:'Deportista profesional', actor:'Actor', politician:'Figura política', entrepreneur:'Empresario', musician:'Músico', other:'Personalidad pública' };
+  if (profile.name === 'Carlos Alcaraz') return 'Jugador profesional de tenis';
+  if (profile.name === 'Jude Bellingham') return 'Jugador de fútbol profesional';
   if (profile.name === 'Donald Trump') return 'Presidente de Estados Unidos';
-  if (profile.name === 'Barack Obama') return 'Expresidente de Estados Unidos';
-  if (profile.name === 'Joe Biden') return 'Expresidente de Estados Unidos';
-  if (profile.name === 'Emmanuel Macron') return 'Presidente de Francia';
-  if (profile.name === 'Pedro Sanchez') return 'Presidente del Gobierno de España';
-  if (profile.name === 'Rishi Sunak') return 'Ex primer ministro del Reino Unido';
-  return labels[profile.role];
+  if (profile.name === 'Barack Obama') return 'Presidente de Estados Unidos';
+  if (profile.name === 'Ayrton Senna') return 'Piloto profesional de Fórmula 1';
+  if (profile.name === 'Kobe Bryant') return 'Jugador profesional de baloncesto';
+  if (profile.name === 'Diego Maradona') return 'Jugador profesional de fútbol';
+  if (profile.name === 'Pelé') return 'Jugador profesional de fútbol';
+  if (profile.name === 'Muhammad Ali') return 'Boxeador profesional';
+  if (profile.role === 'athlete') return 'Deportista profesional';
+  if (profile.role === 'actor') return 'Actor';
+  if (profile.role === 'politician') return 'Político';
+  if (profile.role === 'musician') return 'Músico';
+  if (profile.role === 'entrepreneur') return 'Empresario';
+  return 'Personalidad pública';
 }
+
 function useWikiImages(names: string[]) {
-  const [images, setImages] = useState<Record<string, string>>({});
   const key = names.join('|');
+  const [images, setImages] = useState<Record<string, string>>({});
   useEffect(() => {
     if (!key) return;
     const requestedNames = key.split('|');
@@ -147,7 +151,7 @@ export default function Home() {
   const completedCount = steps.reduce((count, item) => count + (answers[item.key] ? 1 : 0), 0);
 
   const allProfiles: ProfileView[] = useMemo(() => publicProfiles.map((profile) => ({ ...profile, age: profileAge(profile.birthDate), km: profileKmWithDeath(profile, profileKm(profile)), tag: 'Similar' })), []);
-  const sourcePool = allProfiles.filter((profile) => profile.age >= 18 && Math.abs(profile.age - age) <= 5);
+  const sourcePool = allProfiles.filter((profile) => profile.age >= 18 && profile.age <= 99 && Math.abs(profile.age - age) <= 5);
   const candidates = sourcePool.sort((a, b) => (fameScore(b.name) - fameScore(a.name)) || (Math.abs(a.age - age) - Math.abs(b.age - age)) || (Math.abs(a.km - biological) - Math.abs(b.km - biological)));
   const selectedProfiles = candidates.slice(0, 5).map((profile) => ({ ...profile, tag: Math.abs(profile.km - biological) <= 8000 ? 'Muy similar' : Math.abs(profile.km - biological) <= 20000 ? 'Similar' : profile.km < biological ? 'Menor' : 'Mayor' }));
   const profileImages = useWikiImages(selectedProfiles.map((profile) => profile.name));
@@ -182,16 +186,14 @@ export default function Home() {
     </section>}
 
     {screen === 'result' && <section className="result">
-      <h2>El mecánico de<br /><i>turno dice:</i></h2>
-      <div className="result-summary"><div><span>KM CRONOLÓGICOS</span><strong>{formatKm(chronological)} <small>KM</small></strong></div><div><span>KM BIOLÓGICOS</span><strong className={biological > chronological ? 'biological-higher' : biological < chronological ? 'biological-lower' : ''}>{formatKm(biological)} <small>KM</small></strong></div>
-      <div className={`overall-status ${status.tone}`}><span>{status.label}</span><b>{deltaKm < 0 ? '−' : '+'}{formatKm(Math.abs(deltaKm))} <small>KM</small></b></div></div>
+      <div className="result-top"><div className="result-reading"><p className="eyebrow">TU ODÓMETRO</p><div className="result-km-grid"><div className="result-km-card"><span>EDAD CRONOLÓGICA</span><strong>{formatKm(chronological)} <small>KM</small></strong></div><div className={`result-km-card ${deltaKm > 0 ? 'km-higher' : deltaKm < 0 ? 'km-lower' : ''}`}><span>EDAD BIOLÓGICA</span><strong>{formatKm(biological)} <small>KM</small></strong></div></div>
+      <div className={`result-status ${status.tone}`}><strong>{status.label}</strong></div></div>
       <CarCard car={car} image={carImages[car.wikiTitle]} />
-      <section className="comparison" aria-labelledby="comparison-title"><div className="comparison-heading"><span className="comparison-icon">●●●</span><div><h3 id="comparison-title">¿A QUIÉN TE PARECES?</h3><p>5 personas públicas de tu misma generación, elegidas por cercanía de edad y nivel de reconocimiento.</p></div></div>
-        <div className="profile-grid five">{selectedProfiles.map((profile) => <ProfileCard key={profile.name} profile={profile} image={profileImages[profile.name]} />)}</div>
-      </section>
-      <button className="restart" type="button" onClick={reset}>↻ CALCULAR DE NUEVO</button>
+      </div>
+      <div className="profiles-heading"><span className="eyebrow">¿A QUIÉN TE PARECES?</span></div>
+      <div className="profiles-grid">{selectedProfiles.map((profile) => <ProfileCard key={profile.name} profile={profile} image={profileImages[profile.name]} />)}</div>
+      <button className="restart" onClick={reset}>↻ CALCULAR DE NUEVO</button>
     </section>}
-
     <footer><span>HECHO PARA CUIDAR EL VIAJE</span><span>·</span><span>TUS DATOS NO SALEN DE ESTE DISPOSITIVO</span></footer>
   </main>;
 }
